@@ -1,0 +1,9 @@
+[
+  {
+    "id": "PatientIntake",
+    "name": "Patient Intake Form",
+    "pdfUrl": "templates/patient-intake.pdf",
+    "pageCount": 2,
+    "version": 1
+  }
+]

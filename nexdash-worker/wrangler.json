@@ -1,0 +1,15 @@
+{
+  "name": "nexdash-worker",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "routes": [
+    { "pattern": "intake.eliaslhx.com", "custom_domain": true }
+  ],
+  "kv_namespaces": [
+    { "binding": "TOKEN_CACHE", "id": "a0152af8e15040eab1338a0ad4e224d4" }
+  ],
+  "vars": {
+    "TENANT_ID": "REPLACE_WITH_YOUR_TENANT_ID",
+    "SITE_ID": "REPLACE_WITH_YOUR_SHAREPOINT_SITE_ID"
+  }
+}
