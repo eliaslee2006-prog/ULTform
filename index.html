@@ -3,111 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Intake Document Suite V3</title>
+  <title>SharePoint Intake System</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="manifest.json">
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 </head>
 <body>
-  <!-- Floating Glassmorphic HUD Nav -->
-  <nav class="glass-hud">
-    <div class="hud-tabs">
-      <button class="hud-btn active" data-tab="editor">Editor</button>
-      <button class="hud-btn" data-tab="storage">Storage</button>
-      <button class="hud-btn" data-tab="settings">Settings</button>
-    </div>
-  </nav>
+  <!-- Floating Toast Notifications -->
+  <div id="toast-container"></div>
 
-  <main id="app-container">
-    <!-- Editor Workspace -->
-    <section id="editor" class="tab-content active">
+  <div id="app-container">
+    <!-- Main Workspace -->
+    <main id="editor-tab" class="tab-content active">
       <div class="toolbar glass-panel">
-        <label class="action-btn pulse-effect">
+        <label class="action-btn">
           Load Template
-          <input type="file" id="pdfUploader" accept="application/pdf" style="display:none;">
+          <input type="file" id="pdfInput" accept="application/pdf" style="display:none;">
         </label>
-
-        <button class="action-btn pulse-effect" id="addTextBtn">+ Text</button>
-        <button class="action-btn pulse-effect" id="addSigBtn">+ Signature</button>
-
+        <button class="action-btn" id="addTextBtn">+ Text</button>
+        <button class="action-btn" id="openSigBtn">+ Signature</button>
+        
         <div class="pagination">
           <button class="icon-btn" id="prevPage">&lt;</button>
-          <span id="pageIndicator">Page 0 of 0</span>
+          <span id="pageIndicator">0 / 0</span>
           <button class="icon-btn" id="nextPage">&gt;</button>
         </div>
 
         <select id="exportFormat" class="action-select">
           <option value="pdf">PDF (Flattened)</option>
-          <option value="png">PNG (Image)</option>
-          <option value="txt">TXT (Raw Text)</option>
-          <option value="json">JSON (State)</option>
+          <option value="png">PNG Image</option>
         </select>
-
-        <button class="action-btn export-btn pulse-effect" id="exportBtn">Export / Share</button>
-        <button class="action-btn sync-btn pulse-effect" id="syncBtn">Sync SharePoint</button>
+        
+        <button class="action-btn export-btn" id="exportBtn">Export / Share</button>
+        <button class="action-btn sync-btn" id="syncBtn">Sync SharePoint</button>
       </div>
 
-      <div class="a4-viewport" id="a4-container">
-        <canvas id="pdf-background"></canvas>
-        <div id="interactive-overlay"></div>
-      </div>
-    </section>
-
-    <!-- Storage Workspace -->
-    <section id="storage" class="tab-content">
-      <div class="glass-panel full-page">
-        <h2>Local Compartments</h2>
-        <div class="grid-layout">
-          <div class="folder-card" id="folderTemplates">
-            <div class="icon">📁</div>
-            <div>Templates</div>
-          </div>
-          <div class="folder-card" id="folderPending">
-            <div class="icon">⏳</div>
-            <div>Pending Sync</div>
-          </div>
-          <div class="folder-card" id="folderCompleted">
-            <div class="icon">✅</div>
-            <div>Completed</div>
-          </div>
+      <div class="viewport-wrapper">
+        <div id="a4Container" class="a4-viewport">
+          <canvas id="pdfCanvas"></canvas>
+          <div id="interactiveOverlay"></div>
         </div>
       </div>
-    </section>
+    </main>
 
-    <!-- Settings Workspace -->
-    <section id="settings" class="tab-content">
-      <div class="glass-panel full-page">
-        <h2>System Settings</h2>
-        <div class="settings-group">
-          <label class="toggle-switch">
-            <span>Dark Glass Theme</span>
-            <input type="checkbox" id="darkThemeToggle">
-          </label>
+    <!-- Signature Modal -->
+    <div id="sigModal" class="modal-overlay">
+      <div class="modal-card glass-panel">
+        <h3>Add Smooth Signature</h3>
+        <div class="canvas-wrapper">
+          <canvas id="modalSigCanvas"></canvas>
         </div>
-        <div class="settings-group">
-          <label>API Endpoint Routing</label>
-          <input type="text" id="apiEndpointInput" value="https://intake.eliaslhx.com" class="styled-input">
+        <div class="modal-actions">
+          <button class="action-btn" id="clearSigBtn">Clear</button>
+          <button class="action-btn" id="cancelSigBtn">Cancel</button>
+          <button class="action-btn export-btn" id="saveSigBtn">Apply Signature</button>
         </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Signature Drawer Modal -->
-  <div id="signatureModal" class="modal-overlay">
-    <div class="glass-panel modal-card">
-      <h3>Draw Signature</h3>
-      <canvas id="modalSigCanvas"></canvas>
-      <div class="modal-actions">
-        <button class="action-btn" id="clearModalSigBtn">Clear</button>
-        <button class="action-btn sync-btn" id="saveModalSigBtn">Apply</button>
-        <button class="action-btn export-btn" id="closeModalSigBtn">Cancel</button>
       </div>
     </div>
+
+    <!-- Navigation Bar -->
+    <nav class="glass-hud">
+      <div class="hud-tabs">
+        <button class="hud-btn active" data-tab="editor-tab">Editor</button>
+        <button class="hud-btn" data-tab="storage-tab">Storage</button>
+        <button class="hud-btn" data-tab="settings-tab">Settings</button>
+      </div>
+    </nav>
   </div>
 
-  <!-- CDN Dependencies -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
   <script src="app.js"></script>
 </body>
 </html>
