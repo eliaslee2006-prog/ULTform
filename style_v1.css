@@ -1,0 +1,157 @@
+:root {
+  --bg-color: #f2f2f7;
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --text-main: #1c1c1e;
+  --primary-accent: #007aff;
+  --success-accent: #34c759;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  overflow: hidden; /* Prevent native iPad scrolling */
+  display: flex;
+  justify-content: center;
+}
+
+/* Glassmorphism System */
+.glass-hud, .glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* Floating Navigation */
+.glass-hud {
+  position: fixed;
+  bottom: 20px;
+  z-index: 1000;
+  border-radius: 30px;
+  padding: 8px;
+}
+
+.hud-tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.hud-btn {
+  background: transparent;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #8e8e93;
+  transition: all 0.3s ease;
+}
+
+.hud-btn.active {
+  background: white;
+  color: var(--primary-accent);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* Workspaces */
+#app-container {
+  width: 100vw;
+  height: 100vh;
+  padding-bottom: 90px;
+  box-sizing: border-box;
+}
+
+.tab-content {
+  display: none;
+  height: 100%;
+  padding: 20px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tab-content.active {
+  display: flex;
+}
+
+/* Editor Toolbar */
+.toolbar {
+  width: 100%;
+  max-width: 900px;
+  border-radius: 16px;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.action-btn {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: none;
+  background: #e5e5ea;
+  color: var(--primary-accent);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.export-btn { background: var(--primary-accent); color: white; }
+.sync-btn { background: var(--success-accent); color: white; }
+
+/* A4 Viewport */
+.a4-viewport {
+  background: white;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  aspect-ratio: 1 / 1.414;
+  height: calc(100vh - 200px); /* Auto-scales to fit iPad */
+  max-height: 1100px;
+  position: relative;
+}
+
+#pdf-background, #interactive-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Storage Grid */
+.full-page {
+  width: 100%;
+  max-width: 900px;
+  border-radius: 20px;
+  padding: 30px;
+}
+
+.grid-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px;
+}
+
+.folder-card {
+  aspect-ratio: 1;
+  background: rgba(0, 122, 255, 0.1);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--primary-accent);
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 122, 255, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); }
+}
+
+.pulse-effect:active {
+  animation: pulse 0.3s ease-out;
+}
