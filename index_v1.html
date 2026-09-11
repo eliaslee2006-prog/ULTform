@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Intake Editor V1</title>
-  <link rel="stylesheet" href="style_v1.css">
+  <title>Intake Document Suite V3</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!-- Floating Glassmorphic HUD -->
+  <!-- Floating Glassmorphic HUD Nav -->
   <nav class="glass-hud">
     <div class="hud-tabs">
       <button class="hud-btn active" data-tab="editor">Editor</button>
@@ -16,56 +17,97 @@
     </div>
   </nav>
 
-  <!-- Main Workspaces -->
   <main id="app-container">
-    
-    <!-- Editor Tab -->
+    <!-- Editor Workspace -->
     <section id="editor" class="tab-content active">
       <div class="toolbar glass-panel">
+        <label class="action-btn pulse-effect">
+          Load Template
+          <input type="file" id="pdfUploader" accept="application/pdf" style="display:none;">
+        </label>
+
         <button class="action-btn pulse-effect" id="addTextBtn">+ Text</button>
         <button class="action-btn pulse-effect" id="addSigBtn">+ Signature</button>
+
         <div class="pagination">
-          <button class="icon-btn">&lt;</button>
-          <span>Page 1 of 1</span>
-          <button class="icon-btn">&gt;</button>
+          <button class="icon-btn" id="prevPage">&lt;</button>
+          <span id="pageIndicator">Page 0 of 0</span>
+          <button class="icon-btn" id="nextPage">&gt;</button>
         </div>
+
+        <select id="exportFormat" class="action-select">
+          <option value="pdf">PDF (Flattened)</option>
+          <option value="png">PNG (Image)</option>
+          <option value="txt">TXT (Raw Text)</option>
+          <option value="json">JSON (State)</option>
+        </select>
+
         <button class="action-btn export-btn pulse-effect" id="exportBtn">Export / Share</button>
-        <button class="action-btn sync-btn pulse-effect" id="syncBtn">Sync to SharePoint</button>
+        <button class="action-btn sync-btn pulse-effect" id="syncBtn">Sync SharePoint</button>
       </div>
 
-      <!-- A4 Viewport Container -->
       <div class="a4-viewport" id="a4-container">
-        <!-- PDF.js Canvas will render here in V2 -->
         <canvas id="pdf-background"></canvas>
-        <!-- Interactive DOM Overlay for text/signatures -->
         <div id="interactive-overlay"></div>
       </div>
     </section>
 
-    <!-- Storage Tab -->
+    <!-- Storage Workspace -->
     <section id="storage" class="tab-content">
       <div class="glass-panel full-page">
         <h2>Local Compartments</h2>
         <div class="grid-layout">
-          <div class="folder-card">Templates</div>
-          <div class="folder-card">Pending Sync</div>
-          <div class="folder-card">Completed</div>
+          <div class="folder-card" id="folderTemplates">
+            <div class="icon">📁</div>
+            <div>Templates</div>
+          </div>
+          <div class="folder-card" id="folderPending">
+            <div class="icon">⏳</div>
+            <div>Pending Sync</div>
+          </div>
+          <div class="folder-card" id="folderCompleted">
+            <div class="icon">✅</div>
+            <div>Completed</div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Settings Tab -->
+    <!-- Settings Workspace -->
     <section id="settings" class="tab-content">
       <div class="glass-panel full-page">
         <h2>System Settings</h2>
-        <label class="toggle-switch">
-          <span>Dark Mode (Coming in V2)</span>
-          <input type="checkbox" disabled>
-        </label>
+        <div class="settings-group">
+          <label class="toggle-switch">
+            <span>Dark Glass Theme</span>
+            <input type="checkbox" id="darkThemeToggle">
+          </label>
+        </div>
+        <div class="settings-group">
+          <label>API Endpoint Routing</label>
+          <input type="text" id="apiEndpointInput" value="https://intake.eliaslhx.com" class="styled-input">
+        </div>
       </div>
     </section>
-
   </main>
-  <script src="app_v1.js"></script>
+
+  <!-- Signature Drawer Modal -->
+  <div id="signatureModal" class="modal-overlay">
+    <div class="glass-panel modal-card">
+      <h3>Draw Signature</h3>
+      <canvas id="modalSigCanvas"></canvas>
+      <div class="modal-actions">
+        <button class="action-btn" id="clearModalSigBtn">Clear</button>
+        <button class="action-btn sync-btn" id="saveModalSigBtn">Apply</button>
+        <button class="action-btn export-btn" id="closeModalSigBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CDN Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+  <script src="app.js"></script>
 </body>
 </html>
