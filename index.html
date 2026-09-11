@@ -2,51 +2,70 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Client Intake</title>
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Intake">
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Intake Editor V1</title>
+  <link rel="stylesheet" href="style_v1.css">
 </head>
 <body>
+  <!-- Floating Glassmorphic HUD -->
+  <nav class="glass-hud">
+    <div class="hud-tabs">
+      <button class="hud-btn active" data-tab="editor">Editor</button>
+      <button class="hud-btn" data-tab="storage">Storage</button>
+      <button class="hud-btn" data-tab="settings">Settings</button>
+    </div>
+  </nav>
 
-  <header class="ios-navbar">
-    <div class="nav-title">Client Intake Form</div>
-    <button type="button" class="nav-btn-action" id="clearBtn">Clear</button>
-  </header>
-
-  <main class="ios-content">
-    <form id="intakeForm">
-      
-      <div class="ios-group-title">Client Information</div>
-      <div class="ios-list-group">
-        <div class="ios-input-row">
-          <label for="fullName">Full Name</label>
-          <input type="text" id="fullName" placeholder="Jane Doe" required autocomplete="off">
+  <!-- Main Workspaces -->
+  <main id="app-container">
+    
+    <!-- Editor Tab -->
+    <section id="editor" class="tab-content active">
+      <div class="toolbar glass-panel">
+        <button class="action-btn pulse-effect" id="addTextBtn">+ Text</button>
+        <button class="action-btn pulse-effect" id="addSigBtn">+ Signature</button>
+        <div class="pagination">
+          <button class="icon-btn">&lt;</button>
+          <span>Page 1 of 1</span>
+          <button class="icon-btn">&gt;</button>
         </div>
-        <div class="ios-input-row">
-          <label for="email">Email</label>
-          <input type="email" id="email" placeholder="jane.doe@example.com" required autocomplete="off">
+        <button class="action-btn export-btn pulse-effect" id="exportBtn">Export / Share</button>
+        <button class="action-btn sync-btn pulse-effect" id="syncBtn">Sync to SharePoint</button>
+      </div>
+
+      <!-- A4 Viewport Container -->
+      <div class="a4-viewport" id="a4-container">
+        <!-- PDF.js Canvas will render here in V2 -->
+        <canvas id="pdf-background"></canvas>
+        <!-- Interactive DOM Overlay for text/signatures -->
+        <div id="interactive-overlay"></div>
+      </div>
+    </section>
+
+    <!-- Storage Tab -->
+    <section id="storage" class="tab-content">
+      <div class="glass-panel full-page">
+        <h2>Local Compartments</h2>
+        <div class="grid-layout">
+          <div class="folder-card">Templates</div>
+          <div class="folder-card">Pending Sync</div>
+          <div class="folder-card">Completed</div>
         </div>
       </div>
+    </section>
 
-      <div class="ios-group-title">Authorization & Signature</div>
-      <div class="ios-card">
-        <canvas id="signaturePad"></canvas>
-        <div class="canvas-hint">Sign above using your finger or stylus</div>
+    <!-- Settings Tab -->
+    <section id="settings" class="tab-content">
+      <div class="glass-panel full-page">
+        <h2>System Settings</h2>
+        <label class="toggle-switch">
+          <span>Dark Mode (Coming in V2)</span>
+          <input type="checkbox" disabled>
+        </label>
       </div>
+    </section>
 
-      <div class="ios-action-wrapper">
-        <button type="submit" class="ios-btn-primary" id="submitBtn">Submit & Upload</button>
-      </div>
-
-    </form>
   </main>
-
-  <div id="toast" class="ios-toast"></div>
-
-  <script src="app.js"></script>
+  <script src="app_v1.js"></script>
 </body>
 </html>
