@@ -10,6 +10,27 @@ and one or more signatures onto it *without altering the underlying template art
 flatten it client-side, and sync it to a SharePoint document library via a Cloudflare
 Worker + Microsoft Graph. Named **NexDash**.
 
+**Real business context (as of the second build pass):** the actual use case is Singapore
+company incorporation — the person's own real intake form is a "Factsheet for
+Incorporation of New Company" (proposed company names, business activities, paid-up
+capital, registered address, directors, shareholders, company secretary, reasons for
+incorporation, fees), used by "Medinex Healthcare Pte. Ltd. / Medinex Corporate Services
+Pte. Ltd." per the form's own certification text. The earlier "Patient Intake Form" sample
+was a generic placeholder invented before this was known — it's been replaced by
+`templates/factsheet-incorporation.pdf` (`templates/manifest.json`'s `FactsheetIncorporation`
+entry), a from-scratch 4-page recreation. The source `.docx` the person uploaded
+(`Co_Name_yyyymmdd_Factsheet_3_1.docx`) is genuinely corrupted at the XML level — its
+`<w:t>` text-run elements illegally contain nested child elements (a schema violation,
+not just a missing part), which is why LibreOffice refuses to open it ("source file could
+not be loaded") even though the ZIP/XML is syntactically well-formed. All field labels
+were recovered by stripping tags from the raw XML and reconstructing the layout in
+`gen-factsheet.mjs`-style pdf-lib code (script itself wasn't kept in the repo — regenerate
+similarly if the layout needs revision). If the person provides a clean copy of the source
+document later, re-derive the template from that instead and diff against this one for any
+fields this recovery missed or mis-ordered (the corruption made table cell reading order
+unreliable in a few spots — Part 6 bank/signatory section and Part 10 "Contact Information"
+were the least certain reconstructions).
+
 ## Current state of this repo
 
 All modules below are now built and verified end-to-end (headless smoke tests covering

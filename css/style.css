@@ -172,7 +172,7 @@ html, body {
 .file-sync[data-state="local"] { background: var(--text-secondary); }
 .file-actions { display: flex; gap: 2px; flex-shrink: 0; }
 .file-action {
-  width: 30px; height: 30px; border-radius: 50%; border: none; background: transparent; cursor: pointer;
+  width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent; cursor: pointer;
   color: var(--text-secondary); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
 }
 .file-action svg { width: 15px; height: 15px; }
@@ -195,8 +195,9 @@ html, body {
   border: 1px solid var(--glass-border); font-size: 13px; font-weight: 600; flex-shrink: 0;
 }
 .page-nav .icon-btn {
-  width: 30px; height: 30px; border-radius: 50%; border: none; background: rgba(128,128,128,0.14);
+  width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(128,128,128,0.14);
   color: var(--text-primary); display: flex; align-items: center; justify-content: center; cursor: pointer;
+  flex-shrink: 0;
 }
 .page-nav .icon-btn svg { width: 16px; height: 16px; }
 .page-nav .icon-btn:disabled { opacity: 0.35; cursor: default; }
@@ -242,25 +243,32 @@ html, body {
 .field--signature { border-style: solid; background-color: transparent; }
 
 /* ---- Floating glass HUD ---- */
+/* max-width + overflow-x:auto instead of letting content clip against .stage's
+   overflow:hidden — on narrow phones the full button set is wider than the
+   viewport, and clipping (rather than scrolling) made the Complete button
+   partly unreachable. Scrolling keeps every control reachable at any width. */
 .hud {
   position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  max-width: calc(100% - 24px);
   display: flex; align-items: center; gap: 4px; padding: 8px; border-radius: 22px;
   background: var(--glass-fill-strong); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--glass-border); box-shadow: var(--shadow-glass); z-index: 20;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
 }
+.hud::-webkit-scrollbar { display: none; }
 .hud-btn {
   width: 46px; height: 46px; border-radius: 15px; border: none; background: transparent; color: var(--text-primary);
   display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition: background 0.15s ease, transform 0.1s ease; flex-shrink: 0;
 }
 .hud-btn svg { width: 20px; height: 20px; }
 .hud-btn:hover { background: rgba(128,128,128,0.14); }
 .hud-btn:active { transform: scale(0.9); }
-.hud-divider { width: 1px; height: 26px; background: var(--glass-border); margin: 0 4px; }
+.hud-divider { width: 1px; height: 26px; background: var(--glass-border); margin: 0 4px; flex-shrink: 0; }
 .hud-complete {
   padding: 0 18px; height: 46px; border-radius: 15px; background: var(--accent); color: var(--accent-ink);
   font-size: 14px; font-weight: 600; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px;
-  position: relative; overflow: hidden;
+  position: relative; overflow: hidden; flex-shrink: 0; white-space: nowrap;
 }
 .hud-complete:active { transform: scale(0.96); }
 
@@ -296,6 +304,16 @@ html, body {
 .gallery-thumb.selected { border-color: var(--accent); }
 .upload-btn { display: block; width: 100%; padding: 8px; font-size: 11px; text-align: center; border-radius: 8px;
   border: 1px dashed var(--text-secondary); color: var(--text-secondary); cursor: pointer; }
+
+.action-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px; padding: 10px 16px; border-radius: 12px; border: 1px solid var(--glass-border);
+  background: var(--glass-fill); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer;
+  position: relative; overflow: hidden; white-space: nowrap;
+}
+.action-btn:hover { background: var(--glass-fill-strong); }
+.action-btn:active { transform: scale(0.96); }
 
 .hue-row { display: flex; align-items: center; gap: 8px; }
 .hue-row input[type=color] { width: 40px; height: 32px; border: none; border-radius: 8px; background: none; cursor: pointer; }
@@ -411,8 +429,8 @@ html, body {
 [data-theme="dark"] .canvas-stage-wrapper { background: repeating-conic-gradient(#1c1e24 0% 25%, #22242b 0% 50%) 50% / 24px 24px; }
 .konva-container { width: 100%; height: 100%; touch-action: none; }
 
-.canvas-color-input { width: 34px; height: 34px; border: none; border-radius: 10px; background: none; cursor: pointer; padding: 0; }
-.canvas-size-input { width: 90px; accent-color: var(--accent); }
+.canvas-color-input { width: 34px; height: 34px; border: none; border-radius: 10px; background: none; cursor: pointer; padding: 0; flex-shrink: 0; }
+.canvas-size-input { width: 90px; accent-color: var(--accent); flex-shrink: 0; }
 
 .canvas-panel { z-index: 45; }
 .canvas-panel.hidden { display: none; }
@@ -425,7 +443,7 @@ html, body {
 .canvas-layer-row.active { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .canvas-layer-row .layer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .canvas-layer-row button {
-  width: 24px; height: 24px; border-radius: 50%; border: none; background: transparent; color: var(--text-secondary);
+  width: 30px; height: 30px; border-radius: 50%; border: none; background: transparent; color: var(--text-secondary);
   display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
 }
 .canvas-layer-row button svg { width: 14px; height: 14px; }
