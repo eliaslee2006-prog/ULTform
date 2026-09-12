@@ -1,76 +1,285 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SharePoint Intake System</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>NexDash</title>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NexDash">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 </head>
-<body>
-  <!-- Floating Toast Notifications -->
-  <div id="toast-container"></div>
+<body data-theme="light">
 
-  <div id="app-container">
-    <!-- Main Workspace -->
-    <main id="editor-tab" class="tab-content active">
-      <div class="toolbar glass-panel">
-        <label class="action-btn">
-          Load Template
-          <input type="file" id="pdfInput" accept="application/pdf" style="display:none;">
-        </label>
-        <button class="action-btn" id="addTextBtn">+ Text</button>
-        <button class="action-btn" id="openSigBtn">+ Signature</button>
-        
-        <div class="pagination">
-          <button class="icon-btn" id="prevPage">&lt;</button>
-          <span id="pageIndicator">0 / 0</span>
-          <button class="icon-btn" id="nextPage">&gt;</button>
-        </div>
+<div id="app" class="shell">
 
-        <select id="exportFormat" class="action-select">
-          <option value="pdf">PDF (Flattened)</option>
-          <option value="png">PNG Image</option>
-        </select>
-        
-        <button class="action-btn export-btn" id="exportBtn">Export / Share</button>
-        <button class="action-btn sync-btn" id="syncBtn">Sync SharePoint</button>
+  <nav class="rail" id="rail">
+    <button class="rail-item active" data-tab="editor" aria-label="Editor">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19h16M6 15l10-10 3 3-10 10H6v-3z"/></svg>
+    </button>
+    <button class="rail-item" data-tab="customize" aria-label="Customize">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </button>
+    <button class="rail-item" data-tab="files" aria-label="My files">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+    </button>
+    <button class="rail-item" data-tab="nexus" aria-label="NEXUS">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+    </button>
+    <button class="rail-item" data-tab="canvas" aria-label="Canvas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+    </button>
+  </nav>
+
+  <div class="bg-photo" id="bgPhoto"></div>
+  <div class="glow-ring" id="glowRing"></div>
+  <div class="wave-bar top" id="waveTop"></div>
+  <div class="wave-bar bottom" id="waveBottom"></div>
+  <div class="strobe-overlay" id="strobeOverlay"></div>
+
+  <main class="stage">
+
+    <!-- Editor tab -->
+    <section id="screen-editor" class="screen">
+      <div class="template-picker" id="templatePicker">
+        <div class="grid-templates" id="templateGrid"></div>
       </div>
 
-      <div class="viewport-wrapper">
-        <div id="a4Container" class="a4-viewport">
-          <canvas id="pdfCanvas"></canvas>
-          <div id="interactiveOverlay"></div>
+      <div class="editor-view hidden" id="editorView">
+        <div class="page-nav" id="pageNav">
+          <button class="icon-btn" id="btnPrevPage" aria-label="Previous page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <span id="pageIndicator">1 / 1</span>
+          <button class="icon-btn" id="btnNextPage" aria-label="Next page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <div class="pdf-stage-wrapper mode-paginated" id="pdfStageWrapper">
+          <div class="pages-track" id="pagesTrack"></div>
         </div>
       </div>
-    </main>
 
-    <!-- Signature Modal -->
-    <div id="sigModal" class="modal-overlay">
-      <div class="modal-card glass-panel">
-        <h3>Add Smooth Signature</h3>
-        <div class="canvas-wrapper">
-          <canvas id="modalSigCanvas"></canvas>
+      <div class="hud" id="hud">
+        <button class="hud-btn" data-field-type="text" aria-label="Text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></button>
+        <button class="hud-btn" data-field-type="checkbox" aria-label="Checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l2.5 2.5L16 9"/></svg></button>
+        <button class="hud-btn" data-field-type="date" aria-label="Date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
+        <button class="hud-btn" id="btnAddSignature" aria-label="Signature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17s2-1 4-1 3 2 5 2 3-2 5-2 4 1 4 1M3 12l8-9 3 3-8 9-4 1 1-4z"/></svg></button>
+        <div class="hud-divider"></div>
+        <button class="hud-btn" id="btnBackToTemplates" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="hud-divider"></div>
+        <button class="hud-complete" id="btnFlattenSubmit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>
+          Complete
+        </button>
+      </div>
+    </section>
+
+    <!-- My Files tab -->
+    <section id="screen-files" class="screen hidden">
+      <div class="files-toolbar">
+        <div class="folder-chips" id="folderChips"></div>
+        <div class="files-toolbar-actions">
+          <button class="action-btn" id="btnNewFolder">+ Folder</button>
+          <label class="action-btn upload-btn-inline">Import
+            <input type="file" accept="application/pdf" id="importFileInput" style="display:none">
+          </label>
         </div>
+      </div>
+      <div class="files-list" id="filesList"></div>
+      <div class="files-empty hidden" id="filesEmpty">No files yet — complete a form in Editor, or import a PDF.</div>
+    </section>
+    <!-- NEXUS tab -->
+    <section id="screen-nexus" class="screen hidden">
+      <div class="nexus-layout">
+        <div class="nexus-main">
+          <div class="nexus-controls">
+            <button class="btn btn-primary" id="btnNexusStart">Start session</button>
+            <button class="btn btn-secondary hidden" id="btnNexusStop">Stop session</button>
+            <select class="file-folder-select" id="nexusLinkedFile"><option value="">No linked file</option></select>
+          </div>
+          <div class="nexus-transcript" id="nexusTranscript"><div class="nexus-placeholder">Start a session to begin transcribing. Nothing records until you tap Start.</div></div>
+          <div class="nexus-summary hidden" id="nexusSummary"></div>
+          <div class="nexus-export-row hidden" id="nexusExportRow">
+            <button class="action-btn" data-export="png">PNG</button>
+            <button class="action-btn" data-export="pdf">PDF</button>
+            <button class="action-btn" data-export="jpeg">JPEG</button>
+            <button class="action-btn" data-export="txt">TXT</button>
+            <button class="action-btn" data-export="mp3">Raw audio</button>
+            <button class="action-btn" id="btnCrossModuleReport">Cross-module report</button>
+          </div>
+        </div>
+        <aside class="nexus-history">
+          <div class="panel-label">Session history</div>
+          <input type="search" id="nexusSearch" class="nexus-search" placeholder="Search sessions…">
+          <div class="nexus-history-list" id="nexusHistoryList"></div>
+        </aside>
+      </div>
+    </section>
+    <!-- Canvas tab -->
+    <section id="screen-canvas" class="screen hidden">
+      <div class="canvas-stage-wrapper" id="canvasStageWrapper">
+        <div id="konvaContainer" class="konva-container"></div>
+      </div>
+
+      <div class="hud" id="canvasHud">
+        <button class="hud-btn active" data-canvas-tool="brush" aria-label="Brush"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17s2-1 4-1 3 2 5 2 3-2 5-2 4 1 4 1M3 12l8-9 3 3-8 9-4 1 1-4z"/></svg></button>
+        <button class="hud-btn" data-canvas-tool="eraser" aria-label="Eraser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 3l5 5-9.5 9.5H6L2.5 14 12.5 4a2 2 0 013 0z"/><path d="M8 21h13"/></svg></button>
+        <button class="hud-btn" data-canvas-tool="smudge" aria-label="Smudge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M9 9c1 2 1 4-1 6M15 9c-1 2-1 4 1 6"/></svg></button>
+        <button class="hud-btn" data-canvas-tool="select" aria-label="Select"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4l7 16 2-7 7-2z"/></svg></button>
+        <button class="hud-btn" data-canvas-tool="pan" aria-label="Pan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 11V6a2 2 0 114 0v5M12 11V4a2 2 0 114 0v7M16 11V7a2 2 0 114 0v7c0 4-2 7-6 7h-2c-3 0-4-1-6-4l-1.5-3a1.7 1.7 0 012.7-2L9 12"/></svg></button>
+        <div class="hud-divider"></div>
+        <input type="color" class="canvas-color-input" id="canvasColor" value="#1B1D23" aria-label="Color">
+        <input type="range" class="canvas-size-input" id="canvasBrushSize" min="1" max="60" value="8" aria-label="Brush size">
+        <div class="hud-divider"></div>
+        <button class="hud-btn" id="btnCanvasUndo" aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 010 10h-1"/></svg></button>
+        <button class="hud-btn" id="btnCanvasRedo" aria-label="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 7l5 5-5 5M20 12H9A5 5 0 009 22h1"/></svg></button>
+        <button class="hud-btn" id="btnCanvasLayers" aria-label="Layers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5M3 17l9 5 9-5"/></svg></button>
+        <div class="hud-divider"></div>
+        <button class="hud-complete" id="btnCanvasSave">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>
+          Save
+        </button>
+      </div>
+
+      <aside class="panel canvas-panel hidden" id="canvasLayersPanel">
+        <h3>Layers &amp; brushes</h3>
+
+        <div class="panel-section">
+          <div class="panel-label">Blend mode (active layer)</div>
+          <select class="font-select" id="canvasBlendMode">
+            <option value="source-over">Normal</option>
+            <option value="multiply">Multiply</option>
+            <option value="screen">Screen</option>
+            <option value="overlay">Overlay</option>
+            <option value="darken">Darken</option>
+            <option value="lighten">Lighten</option>
+            <option value="difference">Difference</option>
+          </select>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-label">Layers</div>
+          <div id="canvasLayerList" class="canvas-layer-list"></div>
+          <button class="action-btn" id="btnAddLayer">+ Layer</button>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-label">Brush presets</div>
+          <div id="canvasBrushPresets" class="canvas-brush-presets"></div>
+          <button class="action-btn" id="btnSaveBrushPreset">Save current as preset</button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Signature modal -->
+    <div class="modal hidden" id="signatureModal">
+      <div class="modal-card glass">
+        <h2>Sign here</h2>
+        <canvas id="signatureCanvas" class="signature-canvas"></canvas>
         <div class="modal-actions">
-          <button class="action-btn" id="clearSigBtn">Clear</button>
-          <button class="action-btn" id="cancelSigBtn">Cancel</button>
-          <button class="action-btn export-btn" id="saveSigBtn">Apply Signature</button>
+          <button class="btn btn-secondary" id="btnClearSignature">Clear</button>
+          <button class="btn btn-primary" id="btnDoneSignature">Done</button>
         </div>
       </div>
     </div>
+  </main>
 
-    <!-- Navigation Bar -->
-    <nav class="glass-hud">
-      <div class="hud-tabs">
-        <button class="hud-btn active" data-tab="editor-tab">Editor</button>
-        <button class="hud-btn" data-tab="storage-tab">Storage</button>
-        <button class="hud-btn" data-tab="settings-tab">Settings</button>
+  <!-- Customize tab panel -->
+  <aside class="panel" id="customizePanel">
+    <h3>Appearance</h3>
+
+    <div class="panel-section">
+      <div class="panel-label">Theme</div>
+      <div class="theme-row">
+        <div class="theme-swatch selected" data-theme="light">Light</div>
+        <div class="theme-swatch" data-theme="dark">Dark</div>
       </div>
-    </nav>
-  </div>
+    </div>
 
-  <script src="app.js"></script>
+    <div class="panel-section">
+      <div class="panel-label">Background gallery</div>
+      <div class="gallery-row" id="galleryRow">
+        <div class="gallery-thumb" data-bg="radial-gradient(circle at 30% 20%, #FFB199, #3E63DD)"></div>
+        <div class="gallery-thumb" data-bg="linear-gradient(160deg, #1B1D23, #3E63DD)"></div>
+        <div class="gallery-thumb" data-bg="linear-gradient(160deg, #F5F0E6, #DAD2C0)"></div>
+        <div class="gallery-thumb" data-clear="1" style="background:#E9EAEF"></div>
+      </div>
+      <label class="upload-btn">Upload from your photos
+        <input type="file" accept="image/*" id="uploadBg" style="display:none">
+      </label>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Custom accent hue</div>
+      <div class="hue-row">
+        <input type="color" id="accentColor" value="#3E63DD">
+        <span class="hint-text">Pick any hue</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Layout</div>
+      <div class="slider-row"><label>Button size</label><input type="range" id="btnSize" min="40" max="60" value="46"></div>
+      <div class="slider-row"><label>Corner roundness</label><input type="range" id="radius" min="4" max="26" value="15"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Text size</div>
+      <div class="slider-row"><label>Heading</label><input type="range" id="textSizeHeading" min="80" max="140" value="100"></div>
+      <div class="slider-row"><label>Subheading</label><input type="range" id="textSizeSubheading" min="80" max="140" value="100"></div>
+      <div class="slider-row"><label>Body</label><input type="range" id="textSizeBody" min="80" max="140" value="100"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Multi-page templates</div>
+      <div class="theme-row">
+        <div class="theme-swatch selected" data-page-mode="paginated">Paginated</div>
+        <div class="theme-swatch" data-page-mode="continuous">Continuous</div>
+      </div>
+      <div class="hint-text">Paginated: swipe, scroll-wheel, or arrow keys to turn pages. Continuous: scroll through all pages.</div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Custom fonts</div>
+      <select class="font-select" id="fontSelect">
+        <option value="">System default</option>
+      </select>
+      <label class="upload-btn">Upload font (.ttf/.otf/.woff2)
+        <input type="file" accept=".ttf,.otf,.woff,.woff2" id="uploadFont" style="display:none">
+      </label>
+      <div class="slider-row"><label>Letter spacing</label><input type="range" id="fontKerning" min="-2" max="8" value="0" step="0.5"></div>
+      <div class="toggle-row"><span>Bold</span><label class="switch"><input type="checkbox" id="fontBold"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="toggle-row"><span>Italic</span><label class="switch"><input type="checkbox" id="fontItalic"><span class="track"></span><span class="knob"></span></label></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Ambient effects</div>
+      <div class="toggle-row"><span>Border waves</span><label class="switch"><input type="checkbox" id="toggleWave"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="slider-row"><input type="range" id="waveIntensity" min="0" max="100" value="50"></div>
+      <div class="toggle-row"><span>Pulsing glow</span><label class="switch"><input type="checkbox" id="toggleGlow"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="slider-row"><input type="range" id="glowIntensity" min="0" max="100" value="50"></div>
+      <div class="toggle-row"><span>Gentle strobe</span><label class="switch"><input type="checkbox" id="toggleStrobe"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="slider-row"><input type="range" id="strobeIntensity" min="0" max="60" value="20"></div>
+      <div class="hint-text">Capped to a slow brightness breathe — no rapid flashing, for photosensitive safety.</div>
+    </div>
+  </aside>
+
+  <div class="toast" id="toast">
+    <span class="toast-dot"></span><span id="toastText">Uploaded to SharePoint — saved to My files</span>
+    <button class="toast-share hidden" id="toastShareBtn" aria-label="Share">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v14"/></svg>
+    </button>
+  </div>
+  <div class="sync-status" id="syncStatus" data-state="idle"><span class="sync-dot"></span><span id="syncStatusText">Up to date</span></div>
+  <div class="nexus-rec-banner hidden" id="nexusRecBanner"><span class="rec-dot"></span>NEXUS is recording</div>
+</div>
+
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
