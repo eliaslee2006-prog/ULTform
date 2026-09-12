@@ -22,7 +22,7 @@ let stage = null;
 let layers = []; // [{ id, name, konvaLayer, visible, opacity, blendMode }]
 let activeLayerIndex = 0;
 let activeTool = 'brush';
-const brush = { size: 8, opacity: 1, color: '#1B1D23', thinning: 0.6, smoothing: 0.5, streamline: 0.5 };
+const brush = { size: 8, opacity: 1, color: '#1B1D23', thinning: 0.6, smoothing: 0.5, streamline: 0.5, textured: false };
 
 let drawing = false;
 let strokePoints = [];
@@ -122,6 +122,22 @@ function addLayer(name) {
   const meta = makeLayerMeta(crypto.randomUUID(), name || `Layer ${layers.length + 1}`);
   layers.push(meta);
   activeLayerIndex = layers.length - 1;
+  ensureTransformerOnTop();
+  renderLayerList();
+  scheduleDraftSave();
+  showToast(`"${meta.name}" added`);
+}
+
+// A pre-filled opaque layer sent straight to the bottom of the stack — distinct from
+// a plain "+ Layer", which is intentionally transparent so it doesn't hide anything
+// underneath it.
+function addBackgroundLayer(color) {
+  const bgCount = layers.filter((l) => l.name.startsWith('Background')).length;
+  const meta = makeLayerMeta(crypto.randomUUID(), `Background ${bgCount + 1}`);
+  meta.konvaLayer.add(new Konva.Rect({ x: 0, y: 0, width: STAGE_WIDTH, height: STAGE_HEIGHT, fill: color, listening: false }));
+  meta.konvaLayer.moveToBottom();
+  layers.unshift(meta);
+  activeLayerIndex = 0;
   ensureTransformerOnTop();
   renderLayerList();
   scheduleDraftSave();
@@ -284,7 +300,83 @@ function applyPreset(preset) {
   brush.thinning = preset.thinning;
   brush.smoothing = preset.smoothing;
   brush.streamline = preset.streamline;
+  // .abr/.brushset imports recover a name (and for .abr, a rough size) but never the
+  // original bitmap tip/grain — real texture data isn't in a documented, parseable
+  // spot in either format. Rather than paint these identically to a flat built-in
+  // brush, give them a genuine (procedural, not recovered) grain fill so an imported
+  // brush actually looks and paints differently on the canvas, not just in name.
+  brush.textured = !!(preset.sourceFormat && preset.sourceFormat !== 'json');
   document.getElementById('canvasBrushSize').value = preset.size;
+}
+
+// A small, deterministic grain pattern per color (same color always renders the same
+// grain, so re-selecting a preset doesn't shuffle the texture underneath a stroke).
+const grainPatternCache = new Map();
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return h >>> 0;
+}
+function mulberry32(seed) {
+  let t = seed;
+  return function () {
+    t = (t + 0x6D2B79F5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function getGrainPattern(color) {
+  if (grainPatternCache.has(color)) return grainPatternCache.get(color);
+  const size = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const rand = mulberry32(hashString(color));
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.9;
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 40; i++) {
+    ctx.globalAlpha = 0.25 + rand() * 0.5;
+    ctx.beginPath();
+    ctx.arc(rand() * size, rand() * size, 0.4 + rand() * 1.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  grainPatternCache.set(color, canvas);
+  return canvas;
+}
+
+const PALETTE_COLORS = ['#1B1D23', '#FFFFFF', '#E2483D', '#E0932B', '#F2C94C', '#1FA971', '#3E63DD', '#8B5CF6'];
+
+function renderColorPalette() {
+  const row = document.getElementById('colorPaletteRow');
+  if (!row) return;
+  row.innerHTML = '';
+  PALETTE_COLORS.forEach((color) => {
+    const sw = document.createElement('button');
+    sw.className = 'color-palette-swatch' + (color.toLowerCase() === brush.color.toLowerCase() ? ' selected' : '');
+    sw.style.background = color;
+    sw.title = color;
+    sw.addEventListener('click', () => {
+      brush.color = color;
+      document.getElementById('canvasColor').value = color;
+      renderColorPalette();
+    });
+    row.appendChild(sw);
+  });
+}
+
+// UI-only: gives an imported preset's swatch a stippled look so it reads as
+// "textured" at a glance, distinct from a flat built-in brush dot.
+function applyTextureToDot(dot, preset) {
+  if (preset.sourceFormat && preset.sourceFormat !== 'json') {
+    dot.style.background = 'radial-gradient(circle at 30% 30%, currentColor 0.6px, transparent 1.1px) 0 0/4px 4px, radial-gradient(circle at 65% 70%, currentColor 0.5px, transparent 1px) 0 0/5px 5px';
+    dot.style.backgroundColor = 'transparent';
+  } else {
+    dot.style.background = 'currentColor';
+  }
 }
 
 async function renderPresets() {
@@ -297,10 +389,10 @@ async function renderPresets() {
     swatch.title = preset.name;
     const dot = document.createElement('span');
     dot.className = 'dot';
+    applyTextureToDot(dot, preset);
     const dotSize = Math.max(6, Math.min(24, preset.size));
     dot.style.width = dotSize + 'px';
     dot.style.height = dotSize + 'px';
-    dot.style.background = 'currentColor';
     dot.style.opacity = String(preset.opacity);
     swatch.appendChild(dot);
     swatch.addEventListener('click', () => {
@@ -308,6 +400,21 @@ async function renderPresets() {
       swatch.classList.add('selected');
       applyPreset(preset);
     });
+    // Built-ins (id starts with "builtin-") ship with the app and aren't deletable —
+    // only presets a person saved or imported themselves.
+    if (!preset.id.startsWith('builtin-')) {
+      const del = document.createElement('button');
+      del.className = 'brush-preset-delete';
+      del.textContent = '×';
+      del.title = 'Delete preset';
+      del.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await remove('BrushPresets', preset.id);
+        renderPresets();
+        renderBrushAlbum();
+      });
+      swatch.appendChild(del);
+    }
     wrap.appendChild(swatch);
   });
   wireRipples(wrap);
@@ -490,6 +597,7 @@ async function renderBrushAlbum() {
     swatch.className = 'brush-album-swatch';
     const dot = document.createElement('span');
     dot.className = 'dot';
+    applyTextureToDot(dot, preset);
     const dotSize = Math.max(6, Math.min(22, preset.size));
     dot.style.width = dotSize + 'px';
     dot.style.height = dotSize + 'px';
@@ -507,6 +615,19 @@ async function renderBrushAlbum() {
     pack.title = pack.textContent;
     card.appendChild(pack);
     card.addEventListener('click', () => applyPreset(preset));
+
+    const del = document.createElement('button');
+    del.className = 'brush-album-delete';
+    del.textContent = '×';
+    del.title = 'Delete brush';
+    del.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await remove('BrushPresets', preset.id);
+      renderBrushAlbum();
+      renderPresets();
+    });
+    card.appendChild(del);
+
     grid.appendChild(card);
   });
   wireRipples(grid);
@@ -615,14 +736,21 @@ function beginRealStroke(pos, pressure) {
     fill = smudgeColor;
   }
 
-  currentShape = new Konva.Line({
+  const shapeConfig = {
     points: outlinePoints(strokePoints, brush.size),
-    fill,
     closed: true,
     opacity: activeTool === 'smudge' ? brush.opacity * 0.7 : brush.opacity,
     globalCompositeOperation: compositeOp,
     listening: activeTool !== 'eraser'
-  });
+  };
+  if (brush.textured && activeTool === 'brush') {
+    shapeConfig.fillPatternImage = getGrainPattern(brush.color);
+    shapeConfig.fillPriority = 'pattern';
+    shapeConfig.fillPatternRepeat = 'repeat';
+  } else {
+    shapeConfig.fill = fill;
+  }
+  currentShape = new Konva.Line(shapeConfig);
   layer.konvaLayer.add(currentShape);
   layer.konvaLayer.batchDraw();
 }
@@ -894,7 +1022,10 @@ function wireHud() {
   document.querySelectorAll('#canvasHud .hud-btn[data-canvas-tool]').forEach((btn) => {
     btn.addEventListener('click', () => setActiveTool(btn.dataset.canvasTool));
   });
-  document.getElementById('canvasColor').addEventListener('input', (e) => { brush.color = e.target.value; });
+  document.getElementById('canvasColor').addEventListener('input', (e) => {
+    brush.color = e.target.value;
+    renderColorPalette();
+  });
   document.getElementById('canvasBrushSize').addEventListener('input', (e) => { brush.size = parseInt(e.target.value, 10); });
   document.getElementById('btnCanvasUndo').addEventListener('click', undo);
   document.getElementById('btnCanvasRedo').addEventListener('click', redo);
@@ -903,9 +1034,21 @@ function wireHud() {
     const panel = document.getElementById('canvasLayersPanel');
     document.getElementById('brushImportPanel').classList.add('hidden');
     panel.classList.toggle('hidden');
-    if (!panel.classList.contains('hidden')) renderLayerList();
+    if (!panel.classList.contains('hidden')) { renderLayerList(); renderColorPalette(); }
   });
   document.getElementById('btnAddLayer').addEventListener('click', () => addLayer());
+  document.getElementById('btnAddBackgroundLayer').addEventListener('click', () => {
+    addBackgroundLayer(document.getElementById('bgLayerColor').value);
+  });
+  document.getElementById('btnSwapColors').addEventListener('click', () => {
+    const primary = document.getElementById('canvasColor');
+    const secondary = document.getElementById('canvasColorSecondary');
+    const swapped = secondary.value;
+    secondary.value = primary.value;
+    primary.value = swapped;
+    brush.color = primary.value;
+    renderColorPalette();
+  });
   document.getElementById('btnSaveBrushPreset').addEventListener('click', saveCurrentAsPreset);
   document.getElementById('canvasBlendMode').addEventListener('change', (e) => setLayerBlendMode(activeLayerIndex, e.target.value));
 
@@ -931,6 +1074,7 @@ export async function initCanvasTab() {
     wireBrushImport();
     await renderPresets();
     renderLayerList();
+    renderColorPalette();
     window.addEventListener('resize', () => fitStageToContainer(containerEl));
     initialized = true;
   } else {
