@@ -11,6 +11,7 @@ import { initFilesTab, refreshFilesList, addFileRecord } from './files.js';
 import { initNexusTab, refreshNexusView } from './nexus.js';
 import { wireRipples } from './ripple.js';
 import { initDesignMode, closeInspector, applyTextOverrides } from './designmode.js';
+import { initGenerationsTab, setOpenDocumentHandler } from './generations.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
 
@@ -39,7 +40,7 @@ let currentPageIndex = 0;
 let pageMode = 'paginated';
 
 // ---- Rail navigation ----
-const screenIds = { editor: 'screen-editor', files: 'screen-files', nexus: 'screen-nexus', canvas: 'screen-canvas', designmode: 'screen-designmode' };
+const screenIds = { editor: 'screen-editor', files: 'screen-files', nexus: 'screen-nexus', canvas: 'screen-canvas', designmode: 'screen-designmode', generations: 'screen-generations' };
 function setupRail() {
   document.querySelectorAll('.rail-item').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -544,6 +545,23 @@ async function openTemplateBytes(t) {
   setPageMode(pageMode, { silent: true });
 }
 
+// Used by the Generations tab once it's drafted a document: switches to the Editor
+// tab (Generations has its own screen; the result opens where every other document
+// does) and pre-places the field overlays Gemini suggested, the same way a person
+// would place them by hand with the HUD's field-type buttons.
+export async function openGeneratedDocument(t, fields = []) {
+  document.querySelectorAll('.rail-item').forEach((b) => b.classList.toggle('active', b.dataset.tab === 'editor'));
+  document.getElementById('customizePanel').classList.remove('open');
+  closeInspector();
+  Object.values(screenIds).forEach((id) => document.getElementById(id).classList.add('hidden'));
+  document.getElementById(screenIds.editor).classList.remove('hidden');
+  await openTemplateBytes(t);
+  fields.forEach((f) => {
+    const pb = pageBlocks[f.pageIndex];
+    if (pb) addField(pb.overlay, f.type, f.xPct, f.yPct, f.pageIndex);
+  });
+}
+
 function setupHud() {
   document.querySelectorAll('.hud-btn[data-field-type]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -644,6 +662,8 @@ async function bootstrap() {
   initSyncEngine();
   initFilesTab();
   initNexusTab();
+  setOpenDocumentHandler(openGeneratedDocument);
+  initGenerationsTab();
   await loadAndApplySettings();
   await applyTextOverrides();
   await loadTemplates();

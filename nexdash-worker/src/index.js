@@ -203,6 +203,47 @@ async function handleNexusSummarize(request, env) {
   }
 }
 
+// ---- Generations: draft a form's fields from pasted-in document text ----
+// Same principle as NEXUS above — the Gemini call stays server-side. This only ever
+// sees plain text extracted client-side from a .docx/.txt file, never the file itself.
+
+const GENERATIONS_MAX_CHARS = 20000; // roughly a 3-4k word document; keeps cost and
+// prompt size bounded — the client also warns before sending anything this large.
+
+async function handleGenerationsDraft(request, env) {
+  let body;
+  try { body = await request.json(); } catch { body = {}; }
+  const text = (body.text || '').trim();
+  if (!text) {
+    return jsonResponse({ success: false, error: 'Missing text' }, 400);
+  }
+  const truncated = text.slice(0, GENERATIONS_MAX_CHARS);
+
+  const prompt = 'You draft simple fillable forms from source documents for an intake-form app. ' +
+    'Read the document text below and propose a form that captures the information it asks for or ' +
+    'describes. Respond with strict JSON only, matching this shape: ' +
+    '{"title": string, "sections": [{"heading": string, "fields": [{"label": string, ' +
+    '"type": "text"|"checkbox"|"date"|"signature"}]}]}. ' +
+    'Use "checkbox" for yes/no or pick-one-of-several items, "date" for anything date-shaped, ' +
+    '"signature" only for an actual signature line, "text" otherwise. Keep labels short (a few words). ' +
+    'Group related fields under short section headings. Aim for the fields a real form based on this ' +
+    'document would actually need — not one field per sentence.\n\nDocument text:\n' + truncated;
+
+  try {
+    const responseText = await callGemini(env, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' }
+    });
+    const parsed = JSON.parse(responseText);
+    if (!parsed.title || !Array.isArray(parsed.sections)) {
+      throw new Error('Gemini returned an unexpected shape');
+    }
+    return jsonResponse({ success: true, ...parsed });
+  } catch (err) {
+    return jsonResponse({ success: false, error: err.message }, 500);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -217,6 +258,7 @@ export default {
     if (url.pathname === '/sync') return handleSync(request, env);
     if (url.pathname === '/nexus/transcribe') return handleNexusTranscribe(request, env);
     if (url.pathname === '/nexus/summarize') return handleNexusSummarize(request, env);
+    if (url.pathname === '/generations/draft') return handleGenerationsDraft(request, env);
 
     return jsonResponse({ success: false, error: 'Not found' }, 404);
   }

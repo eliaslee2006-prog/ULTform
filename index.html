@@ -37,6 +37,9 @@
     <button class="rail-item" data-tab="designmode" aria-label="Customize HUD">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/></svg>
     </button>
+    <button class="rail-item" data-tab="generations" aria-label="Generations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.8 4.5L18 9l-4.2 1.5L12 15l-1.8-4.5L6 9l4.2-1.5z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+    </button>
   </nav>
 
   <div class="bg-photo" id="bgPhoto"></div>
@@ -212,6 +215,33 @@
         <p>Every piece of text NexDash currently lets you restyle is listed below — tap one to change its font, size, or color. Changes apply everywhere that text appears, immediately.</p>
       </div>
       <div class="design-proxy-list" id="designProxyList"></div>
+    </section>
+
+    <!-- Generations tab -->
+    <section id="screen-generations" class="screen hidden">
+      <div class="template-picker">
+        <div class="import-tile-host">
+          <label class="import-tile-doc" id="generationsImportTile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l1.8 4.5L18 9l-4.2 1.5L12 15l-1.8-4.5L6 9l4.2-1.5z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+            <span class="import-label">Generate a form</span>
+            <span class="import-hint">Click, drop, or paste a Word (.docx) or text (.txt) file</span>
+            <input type="file" accept=".docx,.txt" id="generationsFileInput" style="display:none">
+          </label>
+        </div>
+        <div class="hint-text" id="generationsStatus"></div>
+
+        <div class="gen-review hidden" id="generationsReview">
+          <div class="panel-section">
+            <div class="panel-label">Form title</div>
+            <input type="text" id="generationsTitle" class="font-select">
+          </div>
+          <div class="panel-section">
+            <div class="panel-label">Fields</div>
+            <div id="generationsFieldList" class="gen-field-list"></div>
+          </div>
+          <button class="btn btn-primary" id="btnGenerationsOpen">Open in Editor</button>
+        </div>
+      </div>
     </section>
 
     <aside class="panel" id="textInspectorPanel">

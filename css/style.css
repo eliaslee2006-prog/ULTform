@@ -227,6 +227,18 @@ html, body {
 .import-tile-doc svg { width: 40px; height: 40px; color: var(--accent); }
 .import-tile-doc .import-label { font-size: 15px; font-weight: 700; }
 .import-tile-doc .import-hint { font-size: 11.5px; font-weight: 400; color: var(--text-secondary); }
+.import-tile-doc.busy { opacity: 0.6; pointer-events: none; }
+
+.gen-review { width: min(560px, 90vw); margin-top: 8px; }
+.gen-field-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+.gen-field-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--surface-container); }
+.gen-field-label { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gen-field-type { font-size: 12px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--outline-variant); background: var(--surface); color: var(--text-primary); }
+.gen-field-delete { width: 30px; height: 30px; border-radius: 50%; border: none; background: transparent; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.gen-field-delete svg { width: 14px; height: 14px; }
+.gen-field-delete:hover { color: var(--danger); background: rgba(226,72,61,0.1); }
+#generationsTitle { margin-bottom: 4px; }
+#btnGenerationsOpen { margin-top: 14px; width: 100%; }
 
 .editor-view { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
 
