@@ -1,6 +1,6 @@
 import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/+esm';
 import { PDFDocument } from 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm';
-import { getAll, put, get, requestPersistentStorage } from './db.js';
+import { getAll, put, get, remove, requestPersistentStorage } from './db.js';
 import { addField, addSignatureField, serializeFields } from './overlay-engine.js';
 import { initSignaturePad, resizeCanvasForDPR, clearSignature, exportSignaturePNG, isSignatureEmpty } from './signature-engine.js';
 import { flattenDocument } from './pdf-flatten.js';
@@ -25,9 +25,9 @@ const DEFAULT_SETTINGS = {
   textScaleSubheading: 100,
   textScaleBody: 100,
   pageMode: 'paginated',
-  waveOn: false, waveIntensity: 50,
-  glowOn: false, glowIntensity: 50,
-  strobeOn: false, strobeIntensity: 20,
+  waveOn: false, waveIntensity: 50, waveColor: '#3E63DD',
+  glowOn: false, glowIntensity: 50, glowColor: '#3E63DD',
+  strobeOn: false, strobeIntensity: 20, strobeColor: '#3E63DD',
   fontFamily: '', fontKerning: 0, fontBold: false, fontItalic: false
 };
 
@@ -75,9 +75,9 @@ function collectSettings() {
     textScaleSubheading: document.getElementById('textSizeSubheading').value,
     textScaleBody: document.getElementById('textSizeBody').value,
     pageMode,
-    waveOn: document.getElementById('toggleWave').checked, waveIntensity: document.getElementById('waveIntensity').value,
-    glowOn: document.getElementById('toggleGlow').checked, glowIntensity: document.getElementById('glowIntensity').value,
-    strobeOn: document.getElementById('toggleStrobe').checked, strobeIntensity: document.getElementById('strobeIntensity').value,
+    waveOn: document.getElementById('toggleWave').checked, waveIntensity: document.getElementById('waveIntensity').value, waveColor: document.getElementById('waveColor').value,
+    glowOn: document.getElementById('toggleGlow').checked, glowIntensity: document.getElementById('glowIntensity').value, glowColor: document.getElementById('glowColor').value,
+    strobeOn: document.getElementById('toggleStrobe').checked, strobeIntensity: document.getElementById('strobeIntensity').value, strobeColor: document.getElementById('strobeColor').value,
     fontFamily: document.getElementById('fontSelect').value,
     fontKerning: document.getElementById('fontKerning').value,
     fontBold: document.getElementById('fontBold').checked,
@@ -126,12 +126,18 @@ function applySettings(s) {
 
   document.getElementById('toggleWave').checked = s.waveOn;
   document.getElementById('waveIntensity').value = s.waveIntensity;
-  document.documentElement.style.setProperty('--wave-opacity', s.waveOn ? (s.waveIntensity / 100) * 0.8 : 0);
+  document.getElementById('waveColor').value = s.waveColor;
+  document.documentElement.style.setProperty('--wave-color', s.waveColor);
+  document.documentElement.style.setProperty('--wave-opacity', s.waveOn ? (s.waveIntensity / 100) * 0.45 : 0);
   document.getElementById('toggleGlow').checked = s.glowOn;
   document.getElementById('glowIntensity').value = s.glowIntensity;
+  document.getElementById('glowColor').value = s.glowColor;
+  document.documentElement.style.setProperty('--glow-color', s.glowColor);
   document.documentElement.style.setProperty('--glow-strength', s.glowOn ? (s.glowIntensity / 100) * 1 : 0);
   document.getElementById('toggleStrobe').checked = s.strobeOn;
   document.getElementById('strobeIntensity').value = s.strobeIntensity;
+  document.getElementById('strobeColor').value = s.strobeColor;
+  document.documentElement.style.setProperty('--strobe-color', s.strobeColor);
   document.documentElement.style.setProperty('--strobe-opacity', s.strobeOn ? (s.strobeIntensity / 100) * 0.06 : 0);
 
   document.getElementById('fontKerning').value = s.fontKerning;
@@ -225,20 +231,26 @@ function setupCustomizePanel() {
     });
   });
 
-  function wireEffect(toggleId, sliderId, varName, max) {
+  function wireEffect(toggleId, sliderId, colorId, varName, colorVarName, max) {
     const toggle = document.getElementById(toggleId);
     const slider = document.getElementById(sliderId);
+    const color = document.getElementById(colorId);
     const update = () => {
       const v = toggle.checked ? (slider.value / 100) * max : 0;
       document.documentElement.style.setProperty(varName, v);
+      document.documentElement.style.setProperty(colorVarName, color.value);
       schedulePersist();
     };
     toggle.addEventListener('change', update);
     slider.addEventListener('input', update);
+    color.addEventListener('input', update);
   }
-  wireEffect('toggleWave', 'waveIntensity', '--wave-opacity', 0.8);
-  wireEffect('toggleGlow', 'glowIntensity', '--glow-strength', 1);
-  wireEffect('toggleStrobe', 'strobeIntensity', '--strobe-opacity', 0.06);
+  // Wave's ceiling is capped well below the old 0.8 — a moving pattern doesn't get the
+  // same "no rapid flashing" exemption the strobe's own low cap relies on, so it needs
+  // to stay subtle regardless of how high the intensity slider is pushed.
+  wireEffect('toggleWave', 'waveIntensity', 'waveColor', '--wave-opacity', '--wave-color', 0.45);
+  wireEffect('toggleGlow', 'glowIntensity', 'glowColor', '--glow-strength', '--glow-color', 1);
+  wireEffect('toggleStrobe', 'strobeIntensity', 'strobeColor', '--strobe-opacity', '--strobe-color', 0.06);
 
   document.getElementById('fontKerning').addEventListener('input', (e) => {
     document.documentElement.style.setProperty('--font-kerning', e.target.value + 'px');
@@ -355,6 +367,10 @@ function setupPageGestures() {
 
 // ---- Templates + editor ----
 async function loadTemplates() {
+  // The bundled Factsheet sample was retired from manifest.json — clean up any copy
+  // a returning visitor already has cached in IndexedDB from before, so it doesn't
+  // keep showing up in the grid alongside real imports.
+  await remove('Templates', 'FactsheetIncorporation');
   const resp = await fetch('templates/manifest.json');
   const templates = await resp.json();
   await Promise.all(templates.map(async (t) => {
@@ -371,15 +387,17 @@ async function loadTemplates() {
     card.addEventListener('click', () => openTemplate(t.id));
     grid.appendChild(card);
   });
-  addImportTile(grid);
   wireRipples(grid);
+  const importHost = document.getElementById('importTileHost');
+  importHost.innerHTML = '';
+  addImportTile(importHost);
 }
 
-function addImportTile(grid) {
+function addImportTile(host) {
   const tile = document.createElement('label');
-  tile.className = 'template-card template-card--import';
+  tile.className = 'import-tile-doc';
   tile.innerHTML =
-    '<span class="import-plus">+</span>' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v11l-3 5H7l-3-5V4z"/><path d="M4 15h4l2 3h4l2-3h4"/></svg>' +
     '<span class="import-label">Import a file</span>' +
     '<span class="import-hint">Click, drop, or paste — PDF, photo, or any file from your device</span>';
   const input = document.createElement('input');
@@ -400,7 +418,7 @@ function addImportTile(grid) {
     const file = e.dataTransfer?.files?.[0];
     if (file) handleImportedFile(file);
   });
-  grid.appendChild(tile);
+  host.appendChild(tile);
 }
 
 // Any file type, from any source (click-to-pick, paste, or drag-drop) lands here.
