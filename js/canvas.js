@@ -328,6 +328,214 @@ async function saveCurrentAsPreset() {
   renderPresets();
 }
 
+// ---- Brush pack import ----
+// Full support for our own JSON brush-pack format. Real editor formats (.abr/.brushset)
+// are proprietary binary/archive formats without a public spec — rather than fake full
+// fidelity we can't actually deliver, we recover what's realistically extractable (the
+// brush names, and for .abr a rough size) and import each as a generic brush using that
+// name, clearly labeled so it's obvious texture/dynamics weren't preserved.
+function clampNum(v, min, max, fallback) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : fallback;
+}
+
+function parseJsonBrushPack(json, fileName) {
+  const packName = (typeof json.name === 'string' && json.name.trim()) || fileName;
+  const list = Array.isArray(json.brushes) ? json.brushes : [];
+  return list.map((b, i) => ({
+    id: crypto.randomUUID(),
+    name: (typeof b.name === 'string' && b.name.trim()) || `Brush ${i + 1}`,
+    size: clampNum(b.size, 1, 200, 12),
+    opacity: clampNum(b.opacity, 0.05, 1, 0.9),
+    thinning: clampNum(b.thinning, -1, 1, 0.5),
+    smoothing: clampNum(b.smoothing, 0, 1, 0.5),
+    streamline: clampNum(b.streamline, 0, 1, 0.5),
+    packName,
+    sourceFormat: 'json'
+  }));
+}
+
+// Scans raw bytes for runs of UTF-16BE printable characters — how Adobe's .abr format
+// stores brush names — without attempting to decode the surrounding binary structure
+// (brush tip samples, dynamics tables) that varies across ABR's several sub-versions.
+function scanUtf16BeStrings(bytes, minLen = 3, maxResults = 60) {
+  const found = [];
+  let current = '';
+  for (let i = 0; i + 1 < bytes.length; i += 2) {
+    const code = (bytes[i] << 8) | bytes[i + 1];
+    const isPrintable = code >= 32 && code < 0xD800 && code !== 0x7F;
+    if (isPrintable) {
+      current += String.fromCharCode(code);
+    } else {
+      if (current.length >= minLen && /[A-Za-z]/.test(current)) found.push(current.trim());
+      current = '';
+      if (found.length >= maxResults) break;
+    }
+  }
+  return [...new Set(found)];
+}
+
+function parseAbrBrushPack(bytes, fileName) {
+  const names = scanUtf16BeStrings(bytes).filter((n) => n.length <= 40);
+  const packName = fileName.replace(/\.abr$/i, '');
+  const picked = names.length ? names.slice(0, 24) : [packName];
+  return picked.map((name) => ({
+    id: crypto.randomUUID(),
+    name,
+    size: 16,
+    opacity: 0.85,
+    thinning: 0.4,
+    smoothing: 0.5,
+    streamline: 0.5,
+    packName,
+    sourceFormat: 'abr-partial'
+  }));
+}
+
+// .brushset is a renamed zip; Procreate stores each brush as a "<Name>.brush/" folder
+// entry. Reading the zip's central directory (at the end of the file) for entry names
+// needs no decompression — real brush shape/grain data lives inside those folders in a
+// format specific to Procreate's own engine, which this app's brush engine has no
+// equivalent for, so only the names are recoverable here.
+function listZipEntryNames(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const EOCD_SIG = 0x06054b50;
+  let eocdOffset = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 65536); i--) {
+    if (view.getUint32(i, true) === EOCD_SIG) { eocdOffset = i; break; }
+  }
+  if (eocdOffset < 0) return [];
+  const entryCount = view.getUint16(eocdOffset + 10, true);
+  let offset = view.getUint32(eocdOffset + 16, true);
+  const names = [];
+  const CDR_SIG = 0x02014b50;
+  for (let i = 0; i < entryCount; i++) {
+    if (offset + 46 > bytes.length || view.getUint32(offset, true) !== CDR_SIG) break;
+    const nameLen = view.getUint16(offset + 28, true);
+    const extraLen = view.getUint16(offset + 30, true);
+    const commentLen = view.getUint16(offset + 32, true);
+    const nameBytes = bytes.slice(offset + 46, offset + 46 + nameLen);
+    names.push(new TextDecoder('utf-8').decode(nameBytes));
+    offset += 46 + nameLen + extraLen + commentLen;
+  }
+  return names;
+}
+
+function parseBrushsetPack(bytes, fileName) {
+  const entries = listZipEntryNames(bytes);
+  const names = [...new Set(
+    entries
+      .map((n) => n.match(/^([^/]+)\.brush\//))
+      .filter(Boolean)
+      .map((m) => m[1])
+  )];
+  const packName = fileName.replace(/\.brushset$/i, '');
+  const picked = names.length ? names.slice(0, 24) : [packName];
+  return picked.map((name) => ({
+    id: crypto.randomUUID(),
+    name,
+    size: 16,
+    opacity: 0.85,
+    thinning: 0.4,
+    smoothing: 0.5,
+    streamline: 0.5,
+    packName,
+    sourceFormat: 'brushset-partial'
+  }));
+}
+
+async function importBrushPackFile(file) {
+  const lower = file.name.toLowerCase();
+  let presets = [];
+  try {
+    if (lower.endsWith('.json')) {
+      const json = JSON.parse(await file.text());
+      presets = parseJsonBrushPack(json, file.name.replace(/\.json$/i, ''));
+    } else if (lower.endsWith('.abr')) {
+      presets = parseAbrBrushPack(new Uint8Array(await file.arrayBuffer()), file.name);
+    } else if (lower.endsWith('.brushset')) {
+      presets = parseBrushsetPack(new Uint8Array(await file.arrayBuffer()), file.name);
+    } else {
+      showToast('Unsupported file — use .json, .abr, or .brushset');
+      return;
+    }
+  } catch (err) {
+    console.error('Brush pack import failed', err);
+    showToast(`Couldn't read "${file.name}"`);
+    return;
+  }
+  if (!presets.length) {
+    showToast('No brushes found in that file');
+    return;
+  }
+  await Promise.all(presets.map((p) => put('BrushPresets', p)));
+  const partial = presets[0]?.sourceFormat !== 'json';
+  showToast(partial
+    ? `Imported ${presets.length} brush${presets.length > 1 ? 'es' : ''} — texture not preserved`
+    : `Imported ${presets.length} brush${presets.length > 1 ? 'es' : ''}`);
+  await renderPresets();
+  await renderBrushAlbum();
+}
+
+async function renderBrushAlbum() {
+  const all = await getAll('BrushPresets');
+  const imported = all.filter((p) => p.packName);
+  const grid = document.getElementById('brushAlbumGrid');
+  grid.innerHTML = '';
+  document.getElementById('brushAlbumEmpty').classList.toggle('hidden', imported.length > 0);
+  imported.forEach((preset) => {
+    const card = document.createElement('div');
+    card.className = 'brush-album-card';
+    const swatch = document.createElement('div');
+    swatch.className = 'brush-album-swatch';
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    const dotSize = Math.max(6, Math.min(22, preset.size));
+    dot.style.width = dotSize + 'px';
+    dot.style.height = dotSize + 'px';
+    dot.style.opacity = String(preset.opacity);
+    swatch.appendChild(dot);
+    card.appendChild(swatch);
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = preset.name;
+    name.title = preset.name;
+    card.appendChild(name);
+    const pack = document.createElement('div');
+    pack.className = 'pack';
+    pack.textContent = preset.sourceFormat === 'json' ? preset.packName : `${preset.packName} · partial`;
+    pack.title = pack.textContent;
+    card.appendChild(pack);
+    card.addEventListener('click', () => applyPreset(preset));
+    grid.appendChild(card);
+  });
+  wireRipples(grid);
+}
+
+function wireBrushImport() {
+  const tile = document.querySelector('.brush-import-tile');
+  const input = document.getElementById('brushImportInput');
+  input.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (file) importBrushPackFile(file);
+  });
+  tile.addEventListener('dragover', (e) => { e.preventDefault(); tile.classList.add('drag-over'); });
+  tile.addEventListener('dragleave', () => tile.classList.remove('drag-over'));
+  tile.addEventListener('drop', (e) => {
+    e.preventDefault();
+    tile.classList.remove('drag-over');
+    const file = e.dataTransfer?.files?.[0];
+    if (file) importBrushPackFile(file);
+  });
+  document.getElementById('btnBrushImport').addEventListener('click', () => {
+    const panel = document.getElementById('brushImportPanel');
+    document.getElementById('canvasLayersPanel').classList.add('hidden');
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) renderBrushAlbum();
+  });
+}
+
 // ---- Drawing ----
 function relativePointer() {
   return stage.getRelativePointerPosition();
@@ -693,6 +901,7 @@ function wireHud() {
   document.getElementById('btnCanvasSave').addEventListener('click', saveCanvas);
   document.getElementById('btnCanvasLayers').addEventListener('click', () => {
     const panel = document.getElementById('canvasLayersPanel');
+    document.getElementById('brushImportPanel').classList.add('hidden');
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) renderLayerList();
   });
@@ -719,6 +928,7 @@ export async function initCanvasTab() {
     wireStageEvents();
     wireZoomPan(containerEl);
     wireHud();
+    wireBrushImport();
     await renderPresets();
     renderLayerList();
     window.addEventListener('resize', () => fitStageToContainer(containerEl));

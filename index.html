@@ -142,6 +142,7 @@
         <button class="hud-btn" id="btnCanvasUndo" aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 010 10h-1"/></svg></button>
         <button class="hud-btn" id="btnCanvasRedo" aria-label="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 7l5 5-5 5M20 12H9A5 5 0 009 22h1"/></svg></button>
         <button class="hud-btn" id="btnCanvasLayers" aria-label="Layers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5M3 17l9 5 9-5"/></svg></button>
+        <button class="hud-btn" id="btnBrushImport" aria-label="Brush import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg></button>
         <div class="hud-divider"></div>
         <button class="hud-complete" id="btnCanvasSave">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>
@@ -175,6 +176,28 @@
           <div class="panel-label">Brush presets</div>
           <div id="canvasBrushPresets" class="canvas-brush-presets"></div>
           <button class="action-btn" id="btnSaveBrushPreset">Save current as preset</button>
+        </div>
+      </aside>
+
+      <aside class="panel canvas-panel hidden" id="brushImportPanel">
+        <h3>Brush import</h3>
+
+        <div class="panel-section">
+          <label class="brush-import-tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>
+            <span class="import-label">Import brush pack</span>
+            <span class="import-hint">.json, .abr, or .brushset — click, drop, or paste</span>
+            <input type="file" accept=".json,.abr,.brushset" id="brushImportInput" style="display:none">
+          </label>
+          <div class="consent-note">
+            By importing, you confirm you have the right to use this brush pack. NexDash doesn't check licensing — that's on you, per our site terms.
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-label">Your brush album</div>
+          <div id="brushAlbumGrid" class="brush-album-grid"></div>
+          <div class="hint-text hidden" id="brushAlbumEmpty">No imported brushes yet.</div>
         </div>
       </aside>
     </section>

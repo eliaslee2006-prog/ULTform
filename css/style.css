@@ -533,6 +533,25 @@ html, body {
 .canvas-layer-row button svg { width: 14px; height: 14px; }
 .canvas-layer-row .layer-opacity { flex: 1; min-width: 0; accent-color: var(--accent); }
 
+.brush-import-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  border: 1.5px dashed var(--outline); border-radius: var(--radius-md); padding: 20px 14px;
+  cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease;
+}
+.brush-import-tile:hover, .brush-import-tile.drag-over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.brush-import-tile svg { width: 26px; height: 26px; color: var(--accent); }
+.brush-import-tile .import-label { font-size: 13px; font-weight: 700; }
+.brush-import-tile .import-hint { font-size: 10.5px; color: var(--text-secondary); }
+
+.consent-note { display: flex; gap: 8px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface-container); font-size: 10.5px; color: var(--text-secondary); line-height: 1.4; }
+
+.brush-album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 10px; }
+.brush-album-card { background: rgba(128,128,128,0.08); border-radius: 12px; padding: 10px 6px; text-align: center; cursor: pointer; }
+.brush-album-swatch { width: 34px; height: 34px; border-radius: 50%; margin: 0 auto 6px; background: var(--surface-container-high); display: flex; align-items: center; justify-content: center; }
+.brush-album-swatch .dot { border-radius: 50%; background: currentColor; }
+.brush-album-card .name { font-size: 10px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brush-album-card .pack { font-size: 9px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .canvas-brush-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .brush-preset-swatch {
   width: 40px; height: 40px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
