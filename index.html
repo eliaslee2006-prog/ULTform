@@ -48,6 +48,7 @@
     <section id="screen-editor" class="screen">
       <div class="template-picker" id="templatePicker">
         <div class="grid-templates" id="templateGrid"></div>
+        <div class="import-tile-host" id="importTileHost"></div>
       </div>
 
       <div class="editor-view hidden" id="editorView">
@@ -261,11 +262,11 @@
 
     <div class="panel-section">
       <div class="panel-label">Ambient effects</div>
-      <div class="toggle-row"><span>Border waves</span><label class="switch"><input type="checkbox" id="toggleWave"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="toggle-row"><span>Border flow</span><input type="color" class="effect-color" id="waveColor" value="#3E63DD" aria-label="Border flow color"><label class="switch"><input type="checkbox" id="toggleWave"><span class="track"></span><span class="knob"></span></label></div>
       <div class="slider-row"><input type="range" id="waveIntensity" min="0" max="100" value="50"></div>
-      <div class="toggle-row"><span>Pulsing glow</span><label class="switch"><input type="checkbox" id="toggleGlow"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="toggle-row"><span>Pulsing glow</span><input type="color" class="effect-color" id="glowColor" value="#3E63DD" aria-label="Pulsing glow color"><label class="switch"><input type="checkbox" id="toggleGlow"><span class="track"></span><span class="knob"></span></label></div>
       <div class="slider-row"><input type="range" id="glowIntensity" min="0" max="100" value="50"></div>
-      <div class="toggle-row"><span>Gentle strobe</span><label class="switch"><input type="checkbox" id="toggleStrobe"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="toggle-row"><span>Gentle strobe</span><input type="color" class="effect-color" id="strobeColor" value="#3E63DD" aria-label="Gentle strobe color"><label class="switch"><input type="checkbox" id="toggleStrobe"><span class="track"></span><span class="knob"></span></label></div>
       <div class="slider-row"><input type="range" id="strobeIntensity" min="0" max="60" value="20"></div>
       <div class="hint-text">Capped to a slow brightness breathe — no rapid flashing, for photosensitive safety.</div>
     </div>

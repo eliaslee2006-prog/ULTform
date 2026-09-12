@@ -70,6 +70,13 @@ function pushUndo(action) {
   redoStack = [];
 }
 
+// Thumbnails only need to stay live while the panel showing them is actually open —
+// re-rendering the whole layer list (and re-rasterizing every thumbnail) on every
+// single stroke would be wasted work while the panel is closed.
+function refreshThumbsIfPanelOpen() {
+  if (!document.getElementById('canvasLayersPanel').classList.contains('hidden')) renderLayerList();
+}
+
 function applyAction(action, direction) {
   const layer = layers[action.layerIndex]?.konvaLayer;
   if (action.type === 'add') {
@@ -91,6 +98,7 @@ function undo() {
   applyAction(action, 'undo');
   redoStack.push(action);
   scheduleDraftSave();
+  refreshThumbsIfPanelOpen();
 }
 
 function redo() {
@@ -99,6 +107,7 @@ function redo() {
   applyAction(action, 'redo');
   undoStack.push(action);
   scheduleDraftSave();
+  refreshThumbsIfPanelOpen();
 }
 
 // ---- Layers ----
@@ -116,6 +125,16 @@ function addLayer(name) {
   ensureTransformerOnTop();
   renderLayerList();
   scheduleDraftSave();
+  showToast(`"${meta.name}" added`);
+}
+
+function showToast(text) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastText').textContent = text;
+  document.getElementById('toastShareBtn').classList.add('hidden');
+  toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
 function deleteLayer(index) {
@@ -154,6 +173,17 @@ function setLayerBlendMode(index, mode) {
   scheduleDraftSave();
 }
 
+// Low-res live preview of a layer's actual content — without this every row looked
+// identical apart from its name/icons, so a newly added layer (a genuinely separate
+// Konva raster) looked like nothing had happened.
+function layerThumbDataUrl(meta) {
+  try {
+    return meta.konvaLayer.toDataURL({ x: 0, y: 0, width: STAGE_WIDTH, height: STAGE_HEIGHT, pixelRatio: 68 / STAGE_WIDTH });
+  } catch {
+    return null;
+  }
+}
+
 function renderLayerList() {
   const list = document.getElementById('canvasLayerList');
   list.innerHTML = '';
@@ -163,23 +193,45 @@ function renderLayerList() {
     const row = document.createElement('div');
     row.className = 'canvas-layer-row' + (index === activeLayerIndex ? ' active' : '');
 
+    const thumb = document.createElement('div');
+    thumb.className = 'layer-thumb';
+    const thumbUrl = layerThumbDataUrl(meta);
+    if (thumbUrl) {
+      const img = document.createElement('img');
+      img.src = thumbUrl;
+      img.alt = '';
+      thumb.appendChild(img);
+    }
+    row.appendChild(thumb);
+
+    const main = document.createElement('div');
+    main.className = 'layer-main';
+    const topLine = document.createElement('div');
+    topLine.className = 'layer-top-line';
+    const bottomLine = document.createElement('div');
+    bottomLine.className = 'layer-bottom-line';
+    main.appendChild(topLine);
+    main.appendChild(bottomLine);
+    row.appendChild(main);
+
+    const name = document.createElement('div');
+    name.className = 'layer-name';
+    name.textContent = meta.name;
+    topLine.appendChild(name);
+
     const visBtn = document.createElement('button');
     visBtn.innerHTML = meta.visible
       ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>'
       : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.5 5.2A9.8 9.8 0 0112 5c6 0 10 7 10 7a15.6 15.6 0 01-3.2 3.8M6.4 6.4C4 8 2 12 2 12s1.5 2.7 4 4.6"/></svg>';
-    visBtn.addEventListener('click', () => {
+    visBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       meta.visible = !meta.visible;
       meta.konvaLayer.visible(meta.visible);
       stage.batchDraw();
       renderLayerList();
       scheduleDraftSave();
     });
-    row.appendChild(visBtn);
-
-    const name = document.createElement('div');
-    name.className = 'layer-name';
-    name.textContent = meta.name;
-    row.appendChild(name);
+    topLine.appendChild(visBtn);
 
     const opacity = document.createElement('input');
     opacity.type = 'range';
@@ -191,23 +243,23 @@ function renderLayerList() {
       stage.batchDraw();
       scheduleDraftSave();
     });
-    row.appendChild(opacity);
+    bottomLine.appendChild(opacity);
 
     const upBtn = document.createElement('button');
     upBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
     upBtn.addEventListener('click', (e) => { e.stopPropagation(); moveLayer(index, -1); });
-    row.appendChild(upBtn);
+    bottomLine.appendChild(upBtn);
 
     const downBtn = document.createElement('button');
     downBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>';
     downBtn.addEventListener('click', (e) => { e.stopPropagation(); moveLayer(index, 1); });
-    row.appendChild(downBtn);
+    bottomLine.appendChild(downBtn);
 
     if (layers.length > 1) {
       const delBtn = document.createElement('button');
       delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>';
       delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteLayer(index); });
-      row.appendChild(delBtn);
+      bottomLine.appendChild(delBtn);
     }
 
     row.addEventListener('click', () => {
@@ -294,16 +346,56 @@ function isMultiTouch(e) {
   return e.evt.touches && e.evt.touches.length > 1;
 }
 
+// Bare contact used to commit real ink immediately on pointerdown — even reaching
+// for a panel control that happened to graze the canvas left a mark. Contact now only
+// "arms" a pending stroke (shown as a hollow ring at the pointer); nothing is added to
+// the layer until the pointer has actually moved past ARM_THRESHOLD px on screen.
+const ARM_THRESHOLD = 4;
+let pendingStart = null; // { pos, pressure, clientX, clientY }
+let armedRingEl = null;
+
+function armedRingScreenSize() {
+  return Math.max(10, brush.size * (stage.scaleX() || 1));
+}
+
+function showArmedRing(clientX, clientY) {
+  if (!armedRingEl) {
+    armedRingEl = document.createElement('div');
+    armedRingEl.className = 'brush-armed-ring';
+    document.body.appendChild(armedRingEl);
+  }
+  const size = armedRingScreenSize();
+  armedRingEl.style.width = size + 'px';
+  armedRingEl.style.height = size + 'px';
+  armedRingEl.style.left = clientX + 'px';
+  armedRingEl.style.top = clientY + 'px';
+  armedRingEl.style.display = 'block';
+}
+
+function hideArmedRing() {
+  if (armedRingEl) armedRingEl.style.display = 'none';
+}
+
 function startStroke(e) {
   if (isMultiTouch(e)) return;
   const pos = relativePointer();
   if (!pos) return;
-  // Without pointer capture, a fast stroke that briefly outruns hit-testing on the
-  // exact shape/canvas under the pointer stops receiving move/up events entirely —
-  // capturing on the container keeps every subsequent event routed here regardless.
-  try { stage.container().setPointerCapture(e.evt.pointerId); } catch { /* unsupported pointerId, ignore */ }
-  drawing = true;
+  // Deliberately NOT calling stage.container().setPointerCapture() here: Konva 9.x
+  // already captures the pointer internally on pointerdown (Konva.capturePointerEventsEnabled,
+  // shape.setPointerCapture()) to solve exactly the "fast stroke loses tracking" problem this
+  // used to work around. Our own capture call on the outer container raced with Konva's
+  // internal one for the same pointerId — whichever ran second silently stole capture away
+  // from the other, and losing Konva's own capture meant it stopped delivering pointermove/
+  // pointerup for the rest of the stroke, leaving `drawing` stuck true until the next
+  // successful down/up cycle. Trusting Konva's own capture fixes both that and this pass's
+  // move-threshold logic, which depends on continued pointermove delivery to arm correctly.
   const pressure = e.evt.pressure && e.evt.pressure > 0 ? e.evt.pressure : 0.5;
+  pendingStart = { pos, pressure, clientX: e.evt.clientX, clientY: e.evt.clientY };
+  showArmedRing(e.evt.clientX, e.evt.clientY);
+}
+
+function beginRealStroke(pos, pressure) {
+  drawing = true;
   strokePoints = [[pos.x, pos.y, pressure]];
 
   const layer = activeLayer();
@@ -328,10 +420,21 @@ function startStroke(e) {
 }
 
 function continueStroke(e) {
-  if (!drawing || isMultiTouch(e)) return;
+  if (isMultiTouch(e)) return;
   const pos = relativePointer();
   if (!pos) return;
   const pressure = e.evt.pressure && e.evt.pressure > 0 ? e.evt.pressure : 0.5;
+
+  if (!drawing) {
+    if (!pendingStart) return;
+    showArmedRing(e.evt.clientX, e.evt.clientY);
+    const dx = e.evt.clientX - pendingStart.clientX;
+    const dy = e.evt.clientY - pendingStart.clientY;
+    if (Math.hypot(dx, dy) < ARM_THRESHOLD) return;
+    hideArmedRing();
+    beginRealStroke(pendingStart.pos, pendingStart.pressure);
+  }
+
   strokePoints.push([pos.x, pos.y, pressure]);
 
   if (activeTool === 'smudge') {
@@ -345,6 +448,8 @@ function continueStroke(e) {
 }
 
 function endStroke() {
+  hideArmedRing();
+  pendingStart = null;
   if (!drawing) return;
   drawing = false;
   if (strokePoints.length < 2) {
@@ -352,6 +457,7 @@ function endStroke() {
   } else {
     pushUndo({ type: 'add', layerIndex: activeLayerIndex, node: currentShape });
     scheduleDraftSave();
+    refreshThumbsIfPanelOpen();
   }
   currentShape = null;
   strokePoints = [];
@@ -417,6 +523,7 @@ function deleteSelected() {
   deselectShape();
   stage.batchDraw();
   scheduleDraftSave();
+  refreshThumbsIfPanelOpen();
 }
 
 // ---- Zoom / pan ----
@@ -585,7 +692,9 @@ function wireHud() {
   document.getElementById('btnCanvasRedo').addEventListener('click', redo);
   document.getElementById('btnCanvasSave').addEventListener('click', saveCanvas);
   document.getElementById('btnCanvasLayers').addEventListener('click', () => {
-    document.getElementById('canvasLayersPanel').classList.toggle('hidden');
+    const panel = document.getElementById('canvasLayersPanel');
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) renderLayerList();
   });
   document.getElementById('btnAddLayer').addEventListener('click', () => addLayer());
   document.getElementById('btnSaveBrushPreset').addEventListener('click', saveCurrentAsPreset);
