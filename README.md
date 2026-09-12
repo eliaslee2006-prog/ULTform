@@ -37,7 +37,7 @@ cd nexdash-worker
 npm install
 npx wrangler secret put CLIENT_ID
 npx wrangler secret put CLIENT_SECRET
-npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put GEMINI_API_KEY
 # edit wrangler.json: set real TENANT_ID and SITE_ID first
 npx wrangler deploy
 ```
@@ -45,6 +45,6 @@ npx wrangler deploy
 The `TOKEN_CACHE` KV namespace is already created and wired into `wrangler.json`
 (id `a0152af8e15040eab1338a0ad4e224d4`).
 
-`OPENAI_API_KEY` powers the NEXUS tab (Whisper transcription + GPT summarization) —
-paid, per-use API, budgeted and approved separately from the free Graph API calls used
-for SharePoint sync.
+`GEMINI_API_KEY` powers the NEXUS tab (Gemini handles both transcription and
+summarization) — paid, per-use API, budgeted and approved separately from the free
+Graph API calls used for SharePoint sync.

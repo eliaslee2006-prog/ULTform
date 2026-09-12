@@ -376,15 +376,77 @@ function exportRawAudio(record) {
   downloadBlob(record.audioBlob, `${record.title}.${ext}`);
 }
 
+// Browsers' MediaRecorder can't encode MP3 natively (it only ever gives us webm/opus
+// or similar) — decode the recorded audio back to raw PCM via the Web Audio API, then
+// re-encode that PCM to MP3 client-side with lamejs. Real CPU cost per export, but
+// needs no server round-trip and keeps the API key concern entirely out of this path.
+function floatTo16BitPCM(floatSamples) {
+  const out = new Int16Array(floatSamples.length);
+  for (let i = 0; i < floatSamples.length; i++) {
+    const s = Math.max(-1, Math.min(1, floatSamples[i]));
+    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return out;
+}
+
+async function decodeAudioBlob(blob) {
+  const arrayBuffer = await blob.arrayBuffer();
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioCtx();
+  try {
+    return await audioCtx.decodeAudioData(arrayBuffer);
+  } finally {
+    audioCtx.close();
+  }
+}
+
+async function encodeMp3FromAudioBuffer(audioBuffer) {
+  // Loaded on first MP3 export only — most sessions never touch this, and lamejs is a
+  // meaningful dependency to make every NEXUS visit pay for upfront (same reasoning as
+  // Canvas's lazy-loaded Konva/Perfect Freehand).
+  const { Mp3Encoder } = await import('https://cdn.jsdelivr.net/npm/@breezystack/lamejs@1.2.7/dist/lamejs.js');
+  const channels = Math.min(audioBuffer.numberOfChannels, 2);
+  const encoder = new Mp3Encoder(channels, audioBuffer.sampleRate, 128);
+  const left = floatTo16BitPCM(audioBuffer.getChannelData(0));
+  const right = channels > 1 ? floatTo16BitPCM(audioBuffer.getChannelData(1)) : null;
+
+  const blockSize = 1152;
+  const chunks = [];
+  for (let i = 0; i < left.length; i += blockSize) {
+    const leftChunk = left.subarray(i, i + blockSize);
+    const buf = right
+      ? encoder.encodeBuffer(leftChunk, right.subarray(i, i + blockSize))
+      : encoder.encodeBuffer(leftChunk);
+    if (buf.length > 0) chunks.push(buf);
+  }
+  const finalBuf = encoder.flush();
+  if (finalBuf.length > 0) chunks.push(finalBuf);
+  return new Blob(chunks, { type: 'audio/mpeg' });
+}
+
+async function exportMp3(record) {
+  const audioBuffer = await decodeAudioBlob(record.audioBlob);
+  const mp3Blob = await encodeMp3FromAudioBuffer(audioBuffer);
+  downloadBlob(mp3Blob, `${record.title}.mp3`);
+}
+
 function initExportRow() {
   document.querySelectorAll('#nexusExportRow [data-export]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       if (!activeSessionRecord) return;
       const type = btn.dataset.export;
       if (type === 'txt') exportTxt(activeSessionRecord);
       else if (type === 'pdf') exportPdf(activeSessionRecord);
       else if (type === 'png' || type === 'jpeg') exportImage(activeSessionRecord, type);
-      else if (type === 'mp3') exportRawAudio(activeSessionRecord);
+      else if (type === 'raw-audio') exportRawAudio(activeSessionRecord);
+      else if (type === 'mp3') {
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = 'Encoding…';
+        try { await exportMp3(activeSessionRecord); }
+        catch (err) { console.error('MP3 export failed', err); alert('MP3 export failed: ' + err.message); }
+        finally { btn.disabled = false; btn.textContent = originalText; }
+      }
     });
   });
   document.getElementById('btnCrossModuleReport').addEventListener('click', () => {

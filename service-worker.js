@@ -1,4 +1,7 @@
-const CACHE_VERSION = 'nexdash-v1';
+// Bump this on every deploy that touches index.html/css/js/templates — a returning
+// visitor (or anyone with the PWA installed) keeps getting THIS version's cached
+// assets until the string changes, no matter what's actually been pushed to the repo.
+const CACHE_VERSION = 'nexdash-v2';
 const APP_SHELL = [
   '/index.html',
   '/manifest.json',
