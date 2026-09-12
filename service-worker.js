@@ -1,7 +1,7 @@
 // Bump this on every deploy that touches index.html/css/js/templates — a returning
 // visitor (or anyone with the PWA installed) keeps getting THIS version's cached
 // assets until the string changes, no matter what's actually been pushed to the repo.
-const CACHE_VERSION = 'nexdash-v3';
+const CACHE_VERSION = 'nexdash-v4';
 const APP_SHELL = [
   '/index.html',
   '/manifest.json',
@@ -19,6 +19,8 @@ const APP_SHELL = [
   '/js/worker-config.js',
   '/js/ripple.js',
   '/js/canvas.js',
+  '/js/designmode.js',
+  '/js/generations.js',
   '/templates/manifest.json',
   '/icons/icon-152.png',
   '/icons/icon-167.png',

@@ -46,5 +46,6 @@ The `TOKEN_CACHE` KV namespace is already created and wired into `wrangler.json`
 (id `a0152af8e15040eab1338a0ad4e224d4`).
 
 `GEMINI_API_KEY` powers the NEXUS tab (Gemini handles both transcription and
-summarization) — paid, per-use API, budgeted and approved separately from the free
+summarization) and the Generations tab (drafts a form's fields from an imported
+document's text) — paid, per-use API, budgeted and approved separately from the free
 Graph API calls used for SharePoint sync.

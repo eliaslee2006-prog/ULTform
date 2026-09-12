@@ -34,6 +34,12 @@
     <button class="rail-item" data-tab="canvas" aria-label="Canvas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
     </button>
+    <button class="rail-item" data-tab="designmode" aria-label="Customize HUD">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/></svg>
+    </button>
+    <button class="rail-item" data-tab="generations" aria-label="Generations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.8 4.5L18 9l-4.2 1.5L12 15l-1.8-4.5L6 9l4.2-1.5z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+    </button>
   </nav>
 
   <div class="bg-photo" id="bgPhoto"></div>
@@ -76,7 +82,7 @@
         <div class="hud-divider"></div>
         <button class="hud-complete" id="btnFlattenSubmit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>
-          Complete
+          <span data-txt-id="txt-hud-complete-editor">Complete</span>
         </button>
       </div>
     </section>
@@ -93,15 +99,15 @@
         </div>
       </div>
       <div class="files-list" id="filesList"></div>
-      <div class="files-empty hidden" id="filesEmpty">No files yet — complete a form in Editor, or import a PDF.</div>
+      <div class="files-empty hidden" id="filesEmpty" data-txt-id="txt-files-empty">No files yet — complete a form in Editor, or import a PDF.</div>
     </section>
     <!-- NEXUS tab -->
     <section id="screen-nexus" class="screen hidden">
       <div class="nexus-layout">
         <div class="nexus-main">
           <div class="nexus-controls">
-            <button class="btn btn-primary" id="btnNexusStart">Start session</button>
-            <button class="btn btn-secondary hidden" id="btnNexusStop">Stop session</button>
+            <button class="btn btn-primary" id="btnNexusStart" data-txt-id="txt-nexus-start">Start session</button>
+            <button class="btn btn-secondary hidden" id="btnNexusStop" data-txt-id="txt-nexus-stop">Stop session</button>
             <select class="file-folder-select" id="nexusLinkedFile"><option value="">No linked file</option></select>
           </div>
           <div class="nexus-transcript" id="nexusTranscript"><div class="nexus-placeholder">Start a session to begin transcribing. Nothing records until you tap Start.</div></div>
@@ -142,15 +148,16 @@
         <button class="hud-btn" id="btnCanvasUndo" aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 010 10h-1"/></svg></button>
         <button class="hud-btn" id="btnCanvasRedo" aria-label="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 7l5 5-5 5M20 12H9A5 5 0 009 22h1"/></svg></button>
         <button class="hud-btn" id="btnCanvasLayers" aria-label="Layers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5M3 17l9 5 9-5"/></svg></button>
+        <button class="hud-btn" id="btnBrushImport" aria-label="Brush import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg></button>
         <div class="hud-divider"></div>
         <button class="hud-complete" id="btnCanvasSave">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>
-          Save
+          <span data-txt-id="txt-hud-save-canvas">Save</span>
         </button>
       </div>
 
       <aside class="panel canvas-panel hidden" id="canvasLayersPanel">
-        <h3>Layers &amp; brushes</h3>
+        <h3 data-txt-id="txt-panel-title-layers">Layers &amp; brushes</h3>
 
         <div class="panel-section">
           <div class="panel-label">Blend mode (active layer)</div>
@@ -177,12 +184,111 @@
           <button class="action-btn" id="btnSaveBrushPreset">Save current as preset</button>
         </div>
       </aside>
+
+      <aside class="panel canvas-panel hidden" id="brushImportPanel">
+        <h3 data-txt-id="txt-panel-title-brushimport">Brush import</h3>
+
+        <div class="panel-section">
+          <label class="brush-import-tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>
+            <span class="import-label">Import brush pack</span>
+            <span class="import-hint">.json, .abr, or .brushset — click, drop, or paste</span>
+            <input type="file" accept=".json,.abr,.brushset" id="brushImportInput" style="display:none">
+          </label>
+          <div class="consent-note">
+            By importing, you confirm you have the right to use this brush pack. NexDash doesn't check licensing — that's on you, per our site terms.
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-label">Your brush album</div>
+          <div id="brushAlbumGrid" class="brush-album-grid"></div>
+          <div class="hint-text hidden" id="brushAlbumEmpty">No imported brushes yet.</div>
+        </div>
+      </aside>
     </section>
+
+    <!-- Customize HUD tab -->
+    <section id="screen-designmode" class="screen hidden">
+      <div class="design-intro">
+        <h2>Customize HUD</h2>
+        <p>Every piece of text NexDash currently lets you restyle is listed below — tap one to change its font, size, or color. Changes apply everywhere that text appears, immediately.</p>
+      </div>
+      <div class="design-proxy-list" id="designProxyList"></div>
+    </section>
+
+    <!-- Generations tab -->
+    <section id="screen-generations" class="screen hidden">
+      <div class="template-picker">
+        <div class="import-tile-host">
+          <label class="import-tile-doc" id="generationsImportTile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l1.8 4.5L18 9l-4.2 1.5L12 15l-1.8-4.5L6 9l4.2-1.5z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+            <span class="import-label">Generate a form</span>
+            <span class="import-hint">Click, drop, or paste a Word (.docx) or text (.txt) file</span>
+            <input type="file" accept=".docx,.txt" id="generationsFileInput" style="display:none">
+          </label>
+        </div>
+        <div class="hint-text" id="generationsStatus"></div>
+
+        <div class="gen-review hidden" id="generationsReview">
+          <div class="panel-section">
+            <div class="panel-label">Form title</div>
+            <input type="text" id="generationsTitle" class="font-select">
+          </div>
+          <div class="panel-section">
+            <div class="panel-label">Fields</div>
+            <div id="generationsFieldList" class="gen-field-list"></div>
+          </div>
+          <button class="btn btn-primary" id="btnGenerationsOpen">Open in Editor</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel" id="textInspectorPanel">
+      <h3>Customize text</h3>
+      <div class="panel-section">
+        <div class="panel-label" id="inspectorTargetLabel">No text selected</div>
+        <div class="hint-text">Tap a line on the left to edit it.</div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Font</div>
+        <select class="font-select" id="inspectorFontSelect">
+          <option value="">System default</option>
+        </select>
+        <label class="upload-btn">Upload font (.ttf/.otf/.woff2)
+          <input type="file" accept=".ttf,.otf,.woff,.woff2" id="inspectorUploadFont" style="display:none">
+        </label>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Size</div>
+        <div class="inspector-stepper">
+          <button id="inspectorSizeMinus" aria-label="Smaller">−</button>
+          <span id="inspectorSizeValue">15px</span>
+          <button id="inspectorSizePlus" aria-label="Larger">+</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label">Color</div>
+        <div class="hue-row">
+          <input type="color" id="inspectorColor" value="#1b1b23">
+          <span class="hint-text">Pick any color</span>
+        </div>
+      </div>
+
+      <div class="panel-section inspector-actions-row">
+        <button class="btn btn-primary" id="inspectorApply">Apply</button>
+        <button class="btn btn-secondary" id="inspectorReset">Reset to default</button>
+      </div>
+      <div class="hint-text" id="inspectorStorageNote"></div>
+    </aside>
 
     <!-- Signature modal -->
     <div class="modal hidden" id="signatureModal">
       <div class="modal-card glass">
-        <h2>Sign here</h2>
+        <h2 data-txt-id="txt-modal-signhere">Sign here</h2>
         <canvas id="signatureCanvas" class="signature-canvas"></canvas>
         <div class="modal-actions">
           <button class="btn btn-secondary" id="btnClearSignature">Clear</button>
@@ -194,10 +300,10 @@
 
   <!-- Customize tab panel -->
   <aside class="panel" id="customizePanel">
-    <h3>Appearance</h3>
+    <h3 data-txt-id="txt-panel-title-appearance">Appearance</h3>
 
     <div class="panel-section">
-      <div class="panel-label">Theme</div>
+      <div class="panel-label" data-txt-id="txt-panel-label-theme">Theme</div>
       <div class="theme-row">
         <div class="theme-swatch selected" data-theme="light">Light</div>
         <div class="theme-swatch" data-theme="dark">Dark</div>
@@ -205,7 +311,7 @@
     </div>
 
     <div class="panel-section">
-      <div class="panel-label">Background gallery</div>
+      <div class="panel-label" data-txt-id="txt-panel-label-bg">Background gallery</div>
       <div class="gallery-row" id="galleryRow">
         <div class="gallery-thumb" data-bg="radial-gradient(circle at 30% 20%, #FFB199, #3E63DD)" style="background: radial-gradient(circle at 30% 20%, #FFB199, #3E63DD)"></div>
         <div class="gallery-thumb" data-bg="linear-gradient(160deg, #1B1D23, #3E63DD)" style="background: linear-gradient(160deg, #1B1D23, #3E63DD)"></div>
@@ -218,7 +324,7 @@
     </div>
 
     <div class="panel-section">
-      <div class="panel-label">Custom accent hue</div>
+      <div class="panel-label" data-txt-id="txt-panel-label-accent">Custom accent hue</div>
       <div class="hue-row">
         <input type="color" id="accentColor" value="#3E63DD">
         <span class="hint-text">Pick any hue</span>
@@ -226,20 +332,20 @@
     </div>
 
     <div class="panel-section">
-      <div class="panel-label">Layout</div>
+      <div class="panel-label" data-txt-id="txt-panel-label-layout">Layout</div>
       <div class="slider-row"><label>Button size</label><input type="range" id="btnSize" min="40" max="60" value="46"></div>
       <div class="slider-row"><label>Corner roundness</label><input type="range" id="radius" min="4" max="26" value="15"></div>
     </div>
 
     <div class="panel-section">
-      <div class="panel-label">Text size</div>
+      <div class="panel-label" data-txt-id="txt-panel-label-textsize">Text size</div>
       <div class="slider-row"><label>Heading</label><input type="range" id="textSizeHeading" min="80" max="140" value="100"></div>
       <div class="slider-row"><label>Subheading</label><input type="range" id="textSizeSubheading" min="80" max="140" value="100"></div>
       <div class="slider-row"><label>Body</label><input type="range" id="textSizeBody" min="80" max="140" value="100"></div>
     </div>
 
     <div class="panel-section">
-      <div class="panel-label">Multi-page templates</div>
+      <div class="panel-label" data-txt-id="txt-panel-label-multipage">Multi-page templates</div>
       <div class="theme-row">
         <div class="theme-swatch selected" data-page-mode="paginated">Paginated</div>
         <div class="theme-swatch" data-page-mode="continuous">Continuous</div>
@@ -248,7 +354,7 @@
     </div>
 
     <div class="panel-section">
-      <div class="panel-label">Custom fonts</div>
+      <div class="panel-label" data-txt-id="txt-panel-label-fonts">Custom fonts</div>
       <select class="font-select" id="fontSelect">
         <option value="">System default</option>
       </select>
@@ -261,7 +367,7 @@
     </div>
 
     <div class="panel-section">
-      <div class="panel-label">Ambient effects</div>
+      <div class="panel-label" data-txt-id="txt-panel-label-ambient">Ambient effects</div>
       <div class="toggle-row"><span>Border flow</span><input type="color" class="effect-color" id="waveColor" value="#3E63DD" aria-label="Border flow color"><label class="switch"><input type="checkbox" id="toggleWave"><span class="track"></span><span class="knob"></span></label></div>
       <div class="slider-row"><input type="range" id="waveIntensity" min="0" max="100" value="50"></div>
       <div class="toggle-row"><span>Pulsing glow</span><input type="color" class="effect-color" id="glowColor" value="#3E63DD" aria-label="Pulsing glow color"><label class="switch"><input type="checkbox" id="toggleGlow"><span class="track"></span><span class="knob"></span></label></div>
@@ -278,7 +384,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v14"/></svg>
     </button>
   </div>
-  <div class="sync-status" id="syncStatus" data-state="idle"><span class="sync-dot"></span><span id="syncStatusText">Up to date</span></div>
+  <div class="sync-status" id="syncStatus" data-state="idle"><span class="sync-dot"></span><span id="syncStatusText" data-txt-id="txt-sync-status">Up to date</span></div>
   <div class="nexus-rec-banner hidden" id="nexusRecBanner"><span class="rec-dot"></span>NEXUS is recording</div>
 </div>
 
