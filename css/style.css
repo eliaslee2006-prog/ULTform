@@ -217,16 +217,21 @@ html, body {
 .grid-templates:empty { display: none; }
 .import-tile-host { display: flex; justify-content: center; width: 100%; }
 
+/* Sized to match the actual document view it stands in for — that view is
+   height-driven (.pdf-stage-wrapper .pages-track fills available height at the A4
+   ratio), so this needs to be too, not capped to a small fixed width regardless of
+   how much room the stage actually has. */
 .import-tile-doc {
-  width: min(260px, 72vw); aspect-ratio: 210 / 297; border: 2px dashed var(--outline); border-radius: var(--radius-md);
+  height: min(72vh, 640px); width: auto; max-width: 90vw; aspect-ratio: 210 / 297;
+  border: 2px dashed var(--outline); border-radius: var(--radius-md);
   background: var(--glass-fill); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: var(--shadow-glass);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center;
   padding: 24px; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease;
 }
 .import-tile-doc:hover, .import-tile-doc.drag-over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--glass-fill)); }
-.import-tile-doc svg { width: 40px; height: 40px; color: var(--accent); }
-.import-tile-doc .import-label { font-size: 15px; font-weight: 700; }
-.import-tile-doc .import-hint { font-size: 11.5px; font-weight: 400; color: var(--text-secondary); }
+.import-tile-doc svg { width: 56px; height: 56px; color: var(--accent); }
+.import-tile-doc .import-label { font-size: 17px; font-weight: 700; }
+.import-tile-doc .import-hint { font-size: 12.5px; font-weight: 400; color: var(--text-secondary); max-width: 32ch; }
 .import-tile-doc.busy { opacity: 0.6; pointer-events: none; }
 
 .gen-review { width: min(560px, 90vw); margin-top: 8px; }
@@ -389,13 +394,25 @@ html, body {
 .switch { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .switch .track { position: absolute; inset: 0; background: var(--surface-container-high); border: 2px solid var(--outline); border-radius: 999px; pointer-events: none; transition: background 0.18s ease, border-color 0.18s ease; }
-.switch .knob { position: absolute; top: 5px; left: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--outline); transition: transform 0.18s ease, background 0.18s ease, width 0.15s ease, height 0.15s ease, top 0.15s ease, left 0.15s ease; pointer-events: none; }
+/* top is (track-height - knob-height) / 2 in both states — was 5px/3px against a 26px
+   track (needs 7px/5px for a 12px/16px knob), so the knob sat visibly above center and
+   jumped vertically on toggle instead of just sliding across. */
+.switch .knob { position: absolute; top: 7px; left: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--outline); transition: transform 0.18s ease, background 0.18s ease, width 0.15s ease, height 0.15s ease, top 0.15s ease, left 0.15s ease; pointer-events: none; }
 .switch input:checked + .track { background: var(--accent); border-color: var(--accent); }
-.switch input:checked + .track + .knob { transform: translateX(15px); background: var(--accent-ink); width: 16px; height: 16px; top: 3px; left: 3px; }
+.switch input:checked + .track + .knob { transform: translateX(15px); background: var(--accent-ink); width: 16px; height: 16px; top: 5px; left: 3px; }
 
 .slider-row { margin-bottom: 14px; }
 .slider-row label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 6px; }
 .slider-row input[type=range] { width: 100%; accent-color: var(--accent); }
+
+/* Browsers render <input type=color>'s actual color chip as an internal element that
+   ignores the input's own border-radius unless targeted directly — left alone, a
+   rectangular chip sits inside whatever rounded shape the input is styled as, with
+   visible gaps at the corners. Applies to every circular color input in the app. */
+input[type=color] { -webkit-appearance: none; appearance: none; }
+input[type=color]::-webkit-color-swatch-wrapper { padding: 0; border-radius: inherit; }
+input[type=color]::-webkit-color-swatch { border: none; border-radius: inherit; }
+input[type=color]::-moz-color-swatch { border: none; border-radius: inherit; }
 
 .effect-color {
   width: 26px; height: 26px; border: 2px solid var(--surface); border-radius: 50%; padding: 0; cursor: pointer;
@@ -558,11 +575,20 @@ html, body {
 .consent-note { display: flex; gap: 8px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface-container); font-size: 10.5px; color: var(--text-secondary); line-height: 1.4; }
 
 .brush-album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 10px; }
-.brush-album-card { background: rgba(128,128,128,0.08); border-radius: 12px; padding: 10px 6px; text-align: center; cursor: pointer; }
+.brush-album-card { position: relative; background: rgba(128,128,128,0.08); border-radius: 12px; padding: 10px 6px; text-align: center; cursor: pointer; }
 .brush-album-swatch { width: 34px; height: 34px; border-radius: 50%; margin: 0 auto 6px; background: var(--surface-container-high); display: flex; align-items: center; justify-content: center; }
 .brush-album-swatch .dot { border-radius: 50%; background: currentColor; }
 .brush-album-card .name { font-size: 10px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brush-album-card .pack { font-size: 9px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.layers-add-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.color-dual-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.color-palette-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.color-palette-swatch {
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--surface); cursor: pointer; padding: 0;
+  box-shadow: 0 0 0 1px var(--outline-variant);
+}
+.color-palette-swatch.selected { box-shadow: 0 0 0 2px var(--accent); }
 
 .canvas-brush-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .brush-preset-swatch {
@@ -571,6 +597,11 @@ html, body {
 }
 .brush-preset-swatch.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-container); }
 .brush-preset-swatch .dot { border-radius: 50%; }
+.brush-preset-delete, .brush-album-delete {
+  position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; border-radius: 50%;
+  border: none; background: var(--danger); color: #fff; font-size: 10px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+}
 .brush-preset-swatch .preset-name {
   position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%); font-size: 9px;
   color: var(--text-secondary); white-space: nowrap;

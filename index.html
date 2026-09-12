@@ -175,7 +175,20 @@
         <div class="panel-section">
           <div class="panel-label">Layers</div>
           <div id="canvasLayerList" class="canvas-layer-list"></div>
-          <button class="action-btn" id="btnAddLayer">+ Layer</button>
+          <div class="layers-add-row">
+            <button class="action-btn" id="btnAddLayer">+ Layer</button>
+            <button class="action-btn" id="btnAddBackgroundLayer">+ Background</button>
+            <input type="color" class="effect-color" id="bgLayerColor" value="#FFFFFF" aria-label="Background layer color" title="New background layer's color">
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-label">Color</div>
+          <div class="color-dual-row">
+            <input type="color" class="effect-color" id="canvasColorSecondary" value="#FFFFFF" aria-label="Secondary color" title="Secondary color">
+            <button class="action-btn" id="btnSwapColors">Swap with active</button>
+          </div>
+          <div class="color-palette-row" id="colorPaletteRow"></div>
         </div>
 
         <div class="panel-section">
