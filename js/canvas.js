@@ -298,6 +298,10 @@ function startStroke(e) {
   if (isMultiTouch(e)) return;
   const pos = relativePointer();
   if (!pos) return;
+  // Without pointer capture, a fast stroke that briefly outruns hit-testing on the
+  // exact shape/canvas under the pointer stops receiving move/up events entirely —
+  // capturing on the container keeps every subsequent event routed here regardless.
+  try { stage.container().setPointerCapture(e.evt.pointerId); } catch { /* unsupported pointerId, ignore */ }
   drawing = true;
   const pressure = e.evt.pressure && e.evt.pressure > 0 ? e.evt.pressure : 0.5;
   strokePoints = [[pos.x, pos.y, pressure]];
@@ -479,7 +483,10 @@ function wireStageEvents() {
     if (activeTool === 'select' || activeTool === 'pan') return;
     continueStroke(e);
   });
-  stage.on('pointerup pointerleave', () => {
+  // pointerup only — pointerleave used to also end the stroke, which fired the
+  // instant a fast stroke's coordinates outran the stage's bounds mid-frame,
+  // cutting the stroke off well before the pointer was actually released.
+  stage.on('pointerup', () => {
     if (activeTool === 'select' || activeTool === 'pan') return;
     endStroke();
   });

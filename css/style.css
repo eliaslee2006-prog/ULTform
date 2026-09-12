@@ -132,12 +132,18 @@ html, body {
   padding: 24px 24px 110px;
   overflow: hidden;
 }
+/* .stage centers its children instead of stretching them (align-items/justify-content:
+   center), so every .screen needs its own explicit size or it shrinks to its content's
+   intrinsic size instead of filling the stage — this is what made the Editor's PDF page
+   collapse to 0 height (the page-nav pill was the only thing with real content, so the
+   whole screen shrank around it and appeared to float in empty space). */
+.screen { width: 100%; height: 100%; }
 .stub { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 100%; text-align: center; }
 .stub-title { font-size: calc(17px * var(--text-scale-heading)); font-weight: 700; }
 .stub-sub { font-size: calc(13px * var(--text-scale-subheading)); color: var(--text-secondary); max-width: 320px; }
 
 /* ---- My Files tab ---- */
-#screen-files { width: 100%; height: 100%; display: flex; flex-direction: column; gap: 14px; padding-bottom: 20px; }
+#screen-files { display: flex; flex-direction: column; gap: 14px; padding-bottom: 20px; }
 .files-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
 .folder-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .folder-chip {
@@ -264,6 +270,11 @@ html, body {
 .hud-btn svg { width: 20px; height: 20px; }
 .hud-btn:hover { background: rgba(128,128,128,0.14); }
 .hud-btn:active { transform: scale(0.9); }
+/* Persistent tool selection (Canvas brush/eraser/smudge/select/pan) — .active is
+   toggled in JS but was never given a visible style, so switching tools looked like
+   nothing happened. */
+.hud-btn.active { background: var(--accent); color: var(--accent-ink); }
+.hud-btn.active:hover { background: var(--accent); }
 .hud-divider { width: 1px; height: 26px; background: var(--glass-border); margin: 0 4px; flex-shrink: 0; }
 .hud-complete {
   padding: 0 18px; height: 46px; border-radius: 15px; background: var(--accent); color: var(--accent-ink);
@@ -319,8 +330,9 @@ html, body {
 .hue-row input[type=color] { width: 40px; height: 32px; border: none; border-radius: 8px; background: none; cursor: pointer; }
 
 .font-select {
-  width: 100%; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; border-radius: 8px;
-  border: 1px solid var(--glass-border); background: rgba(128,128,128,0.08); color: var(--text-primary);
+  width: 100%; padding: 9px 10px; margin-bottom: 8px; font-size: 13px; border-radius: 10px;
+  border: 1px solid var(--glass-border); background: var(--glass-fill); backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px); color: var(--text-primary); cursor: pointer;
 }
 
 .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
@@ -377,7 +389,6 @@ html, body {
 @keyframes rec-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 /* ---- NEXUS tab ---- */
-#screen-nexus { width: 100%; height: 100%; }
 .nexus-layout { display: flex; gap: 18px; width: 100%; height: 100%; }
 .nexus-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-bottom: 20px; }
 .nexus-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 30px; }
@@ -421,7 +432,7 @@ html, body {
 }
 
 /* ---- Canvas tab ---- */
-#screen-canvas { width: 100%; height: 100%; position: relative; }
+#screen-canvas { position: relative; }
 .canvas-stage-wrapper {
   position: absolute; inset: 0; border-radius: var(--radius-md); overflow: hidden;
   background: repeating-conic-gradient(#e4e5ea 0% 25%, #edeef2 0% 50%) 50% / 24px 24px;
@@ -432,7 +443,13 @@ html, body {
 .canvas-color-input { width: 34px; height: 34px; border: none; border-radius: 10px; background: none; cursor: pointer; padding: 0; flex-shrink: 0; }
 .canvas-size-input { width: 90px; accent-color: var(--accent); flex-shrink: 0; }
 
-.canvas-panel { z-index: 45; }
+/* .panel defaults to transform:translateX(100%) (off-screen) until .open is added —
+   the Customize panel toggles .open on rail-nav, but the Canvas layers panel is shown
+   via .hidden instead (no slide animation needed), so it needs the transform disabled
+   or it sits permanently just off the right edge, showing only a sliver. Bottom is
+   pulled in above the floating HUD (which the base .panel's bottom:0 would otherwise
+   sit on top of at z-index 45 vs. the HUD's 20, blocking clicks to it entirely). */
+.canvas-panel { z-index: 45; transform: none; bottom: 100px; }
 .canvas-panel.hidden { display: none; }
 
 .canvas-layer-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
