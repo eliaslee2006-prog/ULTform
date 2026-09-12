@@ -1,4 +1,5 @@
 import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/+esm';
+import { PDFDocument } from 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm';
 import { getAll, put, get, requestPersistentStorage } from './db.js';
 import { addField, addSignatureField, serializeFields } from './overlay-engine.js';
 import { initSignaturePad, resizeCanvasForDPR, clearSignature, exportSignaturePNG, isSignatureEmpty } from './signature-engine.js';
@@ -370,14 +371,115 @@ async function loadTemplates() {
     card.addEventListener('click', () => openTemplate(t.id));
     grid.appendChild(card);
   });
+  addImportTile(grid);
   wireRipples(grid);
+}
+
+function addImportTile(grid) {
+  const tile = document.createElement('label');
+  tile.className = 'template-card template-card--import';
+  tile.innerHTML =
+    '<span class="import-plus">+</span>' +
+    '<span class="import-label">Import a file</span>' +
+    '<span class="import-hint">Click, drop, or paste — PDF, photo, or any file from your device</span>';
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.setAttribute('data-role', 'import-any-file');
+  input.style.display = 'none';
+  input.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (file) handleImportedFile(file);
+  });
+  tile.appendChild(input);
+  tile.addEventListener('dragover', (e) => { e.preventDefault(); tile.classList.add('drag-over'); });
+  tile.addEventListener('dragleave', () => tile.classList.remove('drag-over'));
+  tile.addEventListener('drop', (e) => {
+    e.preventDefault();
+    tile.classList.remove('drag-over');
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleImportedFile(file);
+  });
+  grid.appendChild(tile);
+}
+
+// Any file type, from any source (click-to-pick, paste, or drag-drop) lands here.
+// PDFs and images become stampable in the Editor; anything else (Word docs, etc.)
+// isn't something the Editor's overlay tools can work with, so it's stored directly
+// in My Files instead — same destination as that tab's own Import button.
+async function handleImportedFile(file) {
+  if (!file) return;
+  try {
+    if (file.type === 'application/pdf') {
+      const bytes = await file.arrayBuffer();
+      await openTemplateBytes({ id: `import-${crypto.randomUUID()}`, name: file.name.replace(/\.pdf$/i, ''), pdfBytes: bytes });
+    } else if (file.type.startsWith('image/')) {
+      const pdfBytes = await imageFileToPdfBytes(file);
+      await openTemplateBytes({ id: `import-${crypto.randomUUID()}`, name: file.name.replace(/\.[^.]+$/, ''), pdfBytes });
+    } else {
+      await addFileRecord({ id: crypto.randomUUID(), fileName: file.name, pdfBlob: file, source: 'imported' });
+      showToast(`Imported "${file.name}" to My Files`);
+    }
+  } catch (err) {
+    console.error('Import failed', err);
+    alert(`Couldn't import "${file.name}": ${err.message}`);
+  }
+}
+
+// Draws the image to a canvas (works for any format the browser can decode — jpeg,
+// png, webp, gif, heic on Safari, etc.) so pdf-lib, which only embeds PNG/JPEG
+// directly, gets a format it always understands, then wraps it as a single full page
+// sized to the image's own pixel dimensions.
+async function imageFileToPdfBytes(file) {
+  const url = URL.createObjectURL(file);
+  let width, height, pngBytes;
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    width = img.naturalWidth;
+    height = img.naturalHeight;
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    pngBytes = await blob.arrayBuffer();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+  const doc = await PDFDocument.create();
+  const png = await doc.embedPng(pngBytes);
+  const page = doc.addPage([width, height]);
+  page.drawImage(png, { x: 0, y: 0, width, height });
+  return doc.save();
+}
+
+function setupImportPaste() {
+  document.addEventListener('paste', (e) => {
+    if (document.getElementById('templatePicker').classList.contains('hidden')) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file) { handleImportedFile(file); break; }
+      }
+    }
+  });
 }
 
 async function openTemplate(templateId) {
   const templates = await getAll('Templates');
   const t = templates.find((x) => x.id === templateId);
   if (!t) return;
+  await openTemplateBytes(t);
+}
 
+// Shared by manifest-driven templates and ad-hoc imports (a PDF picked from the
+// blank-import tile, or an image auto-converted to a single-page PDF) — anything with
+// {id, name, pdfBytes} can be opened in the Editor the same way.
+async function openTemplateBytes(t) {
   currentTemplate = t;
   currentTemplateBytes = t.pdfBytes;
   currentPageIndex = 0;
@@ -516,6 +618,7 @@ async function bootstrap() {
   setupSignatureModal();
   setupSyncStatusUI();
   setupPageGestures();
+  setupImportPaste();
   wireRipples();
   initSyncEngine();
   initFilesTab();

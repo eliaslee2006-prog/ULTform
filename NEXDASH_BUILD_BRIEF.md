@@ -39,7 +39,7 @@ full NEXUS record→transcribe→summarize→export cycle, and Canvas drawing/la
 What's left:
 
 - **`nexdash-worker/`** — functionally complete, but not yet deployed with real
-  `TENANT_ID`/`SITE_ID`/`CLIENT_ID`/`CLIENT_SECRET`/`OPENAI_API_KEY`. Everything that
+  `TENANT_ID`/`SITE_ID`/`CLIENT_ID`/`CLIENT_SECRET`/`GEMINI_API_KEY`. Everything that
   talks to it (sync, NEXUS transcribe/summarize) degrades gracefully (queues/retries,
   falls back to "unavailable") until it's live.
 - **Not built on this pass**: nothing — every module in the original scope below is done.
@@ -77,7 +77,7 @@ The four gaps originally listed here (no `pageIndex`/multi-page support, empty i
 folder, placeholder template manifest, placeholder Worker vars) are all closed. The one
 that can't be closed from inside a coding session: Worker `vars`/secrets still need real
 values from the person deploying it (`TENANT_ID`, `SITE_ID`, `CLIENT_ID`,
-`CLIENT_SECRET`, `OPENAI_API_KEY` — see `README.md`).
+`CLIENT_SECRET`, `GEMINI_API_KEY` — see `README.md`).
 
 ## Module-by-module scope — all built
 
@@ -90,16 +90,19 @@ text-size sliders, and custom font upload (§5). Every choice persists to Indexe
 ### 2. NEXUS tab — done (`js/nexus.js`, worker `/nexus/*`)
 Manual activation only, with a persistent on-screen recording banner (`.nexus-rec-banner`,
 visible across every tab while recording, not just the NEXUS screen). Session control,
-live transcript (10s-chunked Whisper calls through the Worker), summary & key index
-(figures/discrepancies/definitions/keywords via GPT-4o-mini through the Worker, both keys
-server-side only), export (PNG/PDF/JPEG/TXT — see deviation below), a cross-module report
-combining transcript+summary+linked My Files record, and searchable session history.
-Uses OpenAI Whisper + GPT-4o-mini per the person's explicit choice (needs `OPENAI_API_KEY`
-as a Worker secret — paid, per-use, as flagged originally).
-**Deviation**: the spec said export raw MP3; browsers' MediaRecorder can't encode MP3
-natively, so the export is the real recorded format (webm/opus) labeled "Raw audio"
-rather than mislabeling it — flag back to the person if true MP3 is required.
-
+live transcript (10s-chunked calls through the Worker), summary & key index
+(figures/discrepancies/definitions/keywords, also through the Worker, key server-side
+only), export (PNG/PDF/JPEG/TXT/MP3 — see notes below), a cross-module report combining
+transcript+summary+linked My Files record, and searchable session history.
+Uses **Gemini** (`gemini-2.0-flash`, `GEMINI_API_KEY` Worker secret) for both
+transcription and summarization — a single vendor, chosen after an initial OpenAI
+Whisper+GPT build was swapped out per the person's explicit choice. Gemini takes the
+audio chunk directly as inline base64 data on `/nexus/transcribe`; `/nexus/summarize`
+uses `generationConfig.responseMimeType: "application/json"` for structured output.
+**MP3 export**: browsers' MediaRecorder can't encode MP3 natively, so the recorded audio
+is decoded via the Web Audio API and re-encoded client-side with lamejs at export time —
+real per-export CPU cost, but no server round-trip needed. The original raw recording
+stays available too (webm/opus).
 ### 3. Share — done
 `js/share.js`'s `shareCompletedPDF()`/`openWhatsAppShare()`/`openTelegramShare()` are
 wired into a share icon per file row in My Files (`js/files.js`) and a quick-share button

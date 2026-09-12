@@ -191,10 +191,12 @@ export function initFilesTab() {
 
   document.getElementById('importFileInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-    const pdfBlob = file.slice(0, file.size, 'application/pdf');
-    await addFileRecord({ id: crypto.randomUUID(), fileName: file.name, pdfBlob, source: 'imported' });
     e.target.value = '';
+    if (!file) return;
+    // Store the file as-is, preserving its real type — it used to be relabeled as
+    // application/pdf regardless of what was actually picked, which broke sharing
+    // or opening anything that wasn't genuinely a PDF.
+    await addFileRecord({ id: crypto.randomUUID(), fileName: file.name, pdfBlob: file, source: 'imported' });
     refreshFilesList();
   });
 

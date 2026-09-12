@@ -111,9 +111,41 @@ async function handleSync(request, env) {
   }
 }
 
-// ---- NEXUS: Whisper transcription + GPT summarization ----
-// Paid, per-use OpenAI calls — kept server-side behind this Worker so the API key
+// ---- NEXUS: Gemini transcription + summarization ----
+// Paid, per-use Gemini calls — kept server-side behind this Worker so the API key
 // never reaches the client, same principle as the Entra ID client secret above.
+// Single vendor (Google) for both steps: Gemini takes audio input directly for
+// transcription and handles the structured-JSON summarization step too.
+
+const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function callGemini(env, body) {
+  const resp = await fetch(`${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json();
+  if (!resp.ok) {
+    throw new Error(data.error?.message || `Gemini request failed with status ${resp.status}`);
+  }
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (text === undefined) {
+    throw new Error('Gemini response had no text content (possibly blocked or empty)');
+  }
+  return text;
+}
 
 async function handleNexusTranscribe(request, env) {
   const contentType = request.headers.get('content-type') || '';
@@ -127,21 +159,17 @@ async function handleNexusTranscribe(request, env) {
     return jsonResponse({ success: false, error: 'Missing audio file' }, 400);
   }
 
-  const upstreamForm = new FormData();
-  upstreamForm.append('file', audio, 'chunk.webm');
-  upstreamForm.append('model', 'whisper-1');
-
   try {
-    const resp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
-      body: upstreamForm
+    const audioBuffer = await audio.arrayBuffer();
+    const text = await callGemini(env, {
+      contents: [{
+        parts: [
+          { text: 'Transcribe the speech in this audio clip verbatim. Respond with only the transcript text, no commentary or formatting. If there is no discernible speech, respond with an empty string.' },
+          { inline_data: { mime_type: audio.type || 'audio/webm', data: arrayBufferToBase64(audioBuffer) } }
+        ]
+      }]
     });
-    const data = await resp.json();
-    if (!resp.ok) {
-      throw new Error(data.error?.message || `Whisper request failed with status ${resp.status}`);
-    }
-    return jsonResponse({ success: true, text: data.text || '' });
+    return jsonResponse({ success: true, text: text.trim() });
   } catch (err) {
     return jsonResponse({ success: false, error: err.message }, 500);
   }
@@ -155,32 +183,20 @@ async function handleNexusSummarize(request, env) {
     return jsonResponse({ success: false, error: 'Missing transcript' }, 400);
   }
 
-  const systemPrompt = 'You summarize spoken-session transcripts for clinic staff. ' +
+  const prompt = 'You summarize spoken-session transcripts for clinic staff. ' +
     'Respond with strict JSON only, matching this shape: ' +
     '{"summary": string, "figures": string[], "discrepancies": string[], ' +
     '"definitions": [{"term": string, "definition": string}], "keywords": string[]}. ' +
     '"figures" are numeric, monetary, or date figures mentioned. "discrepancies" are ' +
     'contradictions or inconsistencies noted in the conversation. Keep arrays empty ' +
-    '(not omitted) when nothing applies.';
+    '(not omitted) when nothing applies.\n\nTranscript:\n' + transcript;
 
   try {
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: transcript }
-        ]
-      })
+    const text = await callGemini(env, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' }
     });
-    const data = await resp.json();
-    if (!resp.ok) {
-      throw new Error(data.error?.message || `GPT request failed with status ${resp.status}`);
-    }
-    const parsed = JSON.parse(data.choices[0].message.content);
+    const parsed = JSON.parse(text);
     return jsonResponse({ success: true, ...parsed });
   } catch (err) {
     return jsonResponse({ success: false, error: err.message }, 500);
