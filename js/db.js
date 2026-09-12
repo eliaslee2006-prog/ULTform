@@ -1,5 +1,5 @@
 const DB_NAME = 'intake-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise = null;
 
@@ -29,6 +29,12 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains('NexusSessions')) {
         db.createObjectStore('NexusSessions', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('BrushPresets')) {
+        db.createObjectStore('BrushPresets', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('CanvasDraft')) {
+        db.createObjectStore('CanvasDraft', { keyPath: 'key' });
       }
     };
     req.onsuccess = () => resolve(req.result);

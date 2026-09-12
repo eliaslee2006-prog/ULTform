@@ -15,6 +15,7 @@ const APP_SHELL = [
   '/js/nexus.js',
   '/js/worker-config.js',
   '/js/ripple.js',
+  '/js/canvas.js',
   '/templates/manifest.json',
   '/icons/icon-152.png',
   '/icons/icon-167.png',

@@ -10,16 +10,20 @@ and one or more signatures onto it *without altering the underlying template art
 flatten it client-side, and sync it to a SharePoint document library via a Cloudflare
 Worker + Microsoft Graph. Named **NexDash**.
 
-## Current state of this folder
+## Current state of this repo
 
-- `nexdash-worker/` — working Cloudflare Worker: locked CORS, KV-cached Entra ID token,
-  idempotent Graph upload to a `Sites.Selected`-scoped SharePoint site. Functionally
-  complete for single-file sync; not yet deployed with real tenant/site values.
-- `nexdash-frontend/` — working offline-first PWA shell: IndexedDB queue (Templates /
-  Pending Sync / Completed), pdf-lib flattening, signature capture, the new icon-rail
-  navigation and glass HUD, and a real (not mocked) Customize tab. **Files, NEXUS, and
-  Canvas tabs are stub screens** — nav routes to them, but they have no functionality yet.
-  This is the actual next-build scope.
+All modules below are now built and verified end-to-end (headless smoke tests covering
+multi-page editing, signatures, submit, My Files, Customize persistence, font upload, a
+full NEXUS record→transcribe→summarize→export cycle, and Canvas drawing/layers/undo).
+What's left:
+
+- **`nexdash-worker/`** — functionally complete, but not yet deployed with real
+  `TENANT_ID`/`SITE_ID`/`CLIENT_ID`/`CLIENT_SECRET`/`OPENAI_API_KEY`. Everything that
+  talks to it (sync, NEXUS transcribe/summarize) degrades gracefully (queues/retries,
+  falls back to "unavailable") until it's live.
+- **Not built on this pass**: nothing — every module in the original scope below is done.
+  If new gaps surface, add them here the same way the old ones are documented below,
+  so the next session doesn't have to rediscover them.
 
 ## Non-negotiable constraints already established
 
@@ -46,70 +50,72 @@ Worker + Microsoft Graph. Named **NexDash**.
   imported directly. Canvas tab should define its own simple brush-definition format
   instead of attempting real `.brush` compatibility.
 
-## Known gaps to close (explicitly flagged, not yet built)
+## Known gaps — all closed
 
-1. **Multi-page templates.** Current field schema has no `pageIndex`; renderer only shows
-   page 1 (`js/app.js`, marked with `TODO(claude-code)`). Needs: per-field page tracking,
-   a page navigation UI, and the continuous-scroll vs. swipe-paginated mode from the
-   Customize tab (with matching desktop gestures — scroll wheel for continuous, two-finger
-   trackpad swipe or arrow-key fallback for paginated).
-2. **Icons folder is empty.** Needs `icon-152/167/180/192/512.png`.
-3. **`templates/manifest.json` has a placeholder entry** pointing at a PDF that doesn't
-   exist. Needs real templates.
-4. **Worker `vars` are placeholders** — `TENANT_ID` / `SITE_ID` need real values, and
-   `CLIENT_ID`/`CLIENT_SECRET` need to be set via `wrangler secret put` (never committed).
+The four gaps originally listed here (no `pageIndex`/multi-page support, empty icons
+folder, placeholder template manifest, placeholder Worker vars) are all closed. The one
+that can't be closed from inside a coding session: Worker `vars`/secrets still need real
+values from the person deploying it (`TENANT_ID`, `SITE_ID`, `CLIENT_ID`,
+`CLIENT_SECRET`, `OPENAI_API_KEY` — see `README.md`).
 
-## Module-by-module scope for this build phase
+## Module-by-module scope — all built
 
-### 1. Customize tab — mostly built, needs finishing
-Already working: theme toggle, background gallery + custom photo upload, free-form accent
-hue picker, button size/roundness sliders, ambient effects (waves/glow/strobe) with
-intensity sliders. Still needed: heading/subheading/body text-size sliders (mentioned in
-original spec, not yet wired), and persisting all these choices (currently reset on
-reload — should save to IndexedDB or localStorage-equivalent and reapply on launch).
+### 1. Customize tab — done
+Theme toggle, background gallery + custom photo upload, accent hue picker, button
+size/roundness sliders, ambient effects (waves/glow/strobe), heading/subheading/body
+text-size sliders, and custom font upload (§5). Every choice persists to IndexedDB
+(`Settings` store, `js/app.js`) and reapplies on launch.
 
-### 2. NEXUS tab — not started
-Manual activation only (confirmed decision — no auto-record). Must show a persistent,
-unmissable on-screen recording indicator whenever active — this is a UI safety
-requirement, not optional. Submodules:
-- Session control (start/stop)
-- Live transcript (real-time scrolling text)
-- Summary & key index (auto-pulled figures, discrepancies, definitions, keywords)
-- Export (PNG/PDF/JPEG/TXT of transcript+summary, plus raw MP3)
-- Cross-module report (pulls file locations, transcript, and the customer's form data
-  from that session into one document)
-- Session history (past sessions, searchable, linked to the customer record)
+### 2. NEXUS tab — done (`js/nexus.js`, worker `/nexus/*`)
+Manual activation only, with a persistent on-screen recording banner (`.nexus-rec-banner`,
+visible across every tab while recording, not just the NEXUS screen). Session control,
+live transcript (10s-chunked Whisper calls through the Worker), summary & key index
+(figures/discrepancies/definitions/keywords via GPT-4o-mini through the Worker, both keys
+server-side only), export (PNG/PDF/JPEG/TXT — see deviation below), a cross-module report
+combining transcript+summary+linked My Files record, and searchable session history.
+Uses OpenAI Whisper + GPT-4o-mini per the person's explicit choice (needs `OPENAI_API_KEY`
+as a Worker secret — paid, per-use, as flagged originally).
+**Deviation**: the spec said export raw MP3; browsers' MediaRecorder can't encode MP3
+natively, so the export is the real recorded format (webm/opus) labeled "Raw audio"
+rather than mislabeling it — flag back to the person if true MP3 is required.
 
-Needs a transcription API (e.g. Whisper or a Gemini/GPT audio endpoint) and an LLM for
-summarization — both are paid, per-use APIs, unlike the free Graph API calls elsewhere in
-this system. Budget for that before wiring it up.
+### 3. Share — done
+`js/share.js`'s `shareCompletedPDF()`/`openWhatsAppShare()`/`openTelegramShare()` are
+wired into a share icon per file row in My Files (`js/files.js`) and a quick-share button
+on the post-Complete toast (`js/app.js`).
 
-### 3. Share — functionally done
-`js/share.js` has `shareCompletedPDF()` (native share sheet) and
-`openWhatsAppShare()`/`openTelegramShare()` (free click-to-chat links). Needs UI hookup:
-a share icon per file row in My Files, plus a quick-share action on the post-Complete toast.
+### 4. My Files tab — done (`js/files.js`)
+Folders (create/rename via the folder chip's ×/reassign per file), color-code (cycling
+dot per file), import (arbitrary PDFs, local-only — not synced to SharePoint), and the
+share/export entry point per file. Backed by a `Files` IndexedDB store (not `Completed` —
+`sync-engine.js` patches sync status onto the same record instead of writing a separate
+one).
 
-### 4. My Files tab — not started
-Folders, rename, color-code, import, and the export/share entry point per file (this is
-where "export" actually lives in the nav model — not a standalone rail tab, by design).
+### 5. Custom fonts — done
+Upload button (`js/fonts.js`, `FontFace` API + IndexedDB), font repository re-registered
+on every launch, font selector + kerning/bold/italic controls in the Customize tab.
 
-### 5. Custom fonts — not started
-Upload button, font repository, kerning/spacing/bold/italic controls in the Customize tab.
-
-### 6 & 7. Signature instruments + Canvas/mindmap tab — not started
-Recommended APIs, already agreed:
-- **Pointer Events API** for pressure/tilt (Apple Pencil support)
-- **WebGL2** for blend modes and layer compositing
-- **Perfect Freehand** (library) for smooth pressure-sensitive stroke rendering
-- **Konva.js** or **Fabric.js** for layer/object management rather than hand-rolling it
-- Custom brush-definition format (see constraints above — not real `.brush` import)
-Canvas tab reuses the same hotbar pattern as the Editor tab's HUD, plus smudge,
-select/deselect, and a layers panel.
+### 6 & 7. Signature instruments + Canvas/mindmap tab — done (`js/canvas.js`)
+Konva.js for the stage/layers/objects/selection, Perfect Freehand for pressure-sensitive
+stroke outlines, Pointer Events for pressure. Brush/eraser/smudge/select/pan tools on a
+hotbar matching the Editor's HUD, undo/redo, a layers panel (add/delete/reorder/visibility/
+opacity/blend-mode), a custom brush-preset format (size/opacity/thinning/smoothing/
+streamline — not real `.brush` import), pinch/wheel zoom, and an auto-saved draft so
+switching tabs doesn't lose work. Save flattens to PNG, embeds it in a single-page PDF
+(so it flows through the exact same My-Files/sync pipeline as intake forms), and follows
+the Complete-flow pattern (§8).
+**Deviation**: blend-mode compositing uses Canvas2D's native `globalCompositeOperation`
+(via Konva) rather than a hand-rolled WebGL2 shader compositor — same visual blend modes
+(multiply/screen/overlay/etc.), far less risk of a half-working GPU pipeline. Revisit with
+real WebGL2 only if profiling shows a need at higher layer counts.
+**Bug worth knowing about**: brush size must stay scale-independent (divided by
+`stage.scaleX()` before feeding Perfect Freehand) — the canvas is a large virtual surface
+scaled down to fit the viewport, so a size fed in raw stage units renders (and hit-tests)
+as near-invisible sub-pixel width. Don't remove that division.
 
 ### 8. Complete flow — done
-`submitDocument()` in `js/app.js` already flattens, enqueues to the offline sync queue,
-and shows the success toast. This is the pattern other "save" actions (e.g. NEXUS export,
-Canvas save) should follow for consistency.
+`submitDocument()` in `js/app.js` flattens, enqueues to the offline sync queue, and shows
+the success toast. NEXUS export and Canvas save both follow the same pattern.
 
 ## Design system reference
 
@@ -118,8 +124,10 @@ Canvas save) should follow for consistency.
 - Icon rail (left in landscape, collapses to a bottom strip in portrait via
   `@media (orientation: portrait)` in `css/style.css`) replaces an earlier bottom-tab-bar
   design — don't revert to that pattern.
-- Every interactive control gets the ripple pulse effect (`wireRipples()` in `js/app.js`)
-  — apply this convention to any new buttons added in Files/NEXUS/Canvas.
+- Every interactive control gets the ripple pulse effect (`wireRipples()`, now in
+  `js/ripple.js` — pulled out of `js/app.js` to break a circular import that was
+  double-running `bootstrap()` under Vite's dev server) — apply this convention to any
+  new buttons.
 - Glassmorphic panels: `backdrop-filter: blur(20-24px) saturate(180%)`, translucent white
   (or dark-mode equivalent) fill, 1px near-white border. Keep this consistent across new
   modules rather than introducing a different surface style.

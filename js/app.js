@@ -40,7 +40,7 @@ let pageMode = 'paginated';
 const screenIds = { editor: 'screen-editor', files: 'screen-files', nexus: 'screen-nexus', canvas: 'screen-canvas' };
 function setupRail() {
   document.querySelectorAll('.rail-item').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       document.querySelectorAll('.rail-item').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       const tab = btn.dataset.tab;
@@ -51,6 +51,12 @@ function setupRail() {
       }
       if (tab === 'files') refreshFilesList();
       if (tab === 'nexus') refreshNexusView();
+      // Canvas pulls in Konva + perfect-freehand (~450KB) — load on first visit only,
+      // so every other tab isn't paying for a dependency it never uses.
+      if (tab === 'canvas') {
+        const { initCanvasTab } = await import('./canvas.js');
+        initCanvasTab();
+      }
     });
   });
 }
