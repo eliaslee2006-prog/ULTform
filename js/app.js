@@ -10,6 +10,7 @@ import { restoreFonts, addFontFromFile, listFonts, fontFamilyCss } from './fonts
 import { initFilesTab, refreshFilesList, addFileRecord } from './files.js';
 import { initNexusTab, refreshNexusView } from './nexus.js';
 import { wireRipples } from './ripple.js';
+import { initDesignMode, closeInspector, applyTextOverrides } from './designmode.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
 
@@ -38,7 +39,7 @@ let currentPageIndex = 0;
 let pageMode = 'paginated';
 
 // ---- Rail navigation ----
-const screenIds = { editor: 'screen-editor', files: 'screen-files', nexus: 'screen-nexus', canvas: 'screen-canvas' };
+const screenIds = { editor: 'screen-editor', files: 'screen-files', nexus: 'screen-nexus', canvas: 'screen-canvas', designmode: 'screen-designmode' };
 function setupRail() {
   document.querySelectorAll('.rail-item').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -46,12 +47,14 @@ function setupRail() {
       btn.classList.add('active');
       const tab = btn.dataset.tab;
       document.getElementById('customizePanel').classList.toggle('open', tab === 'customize');
+      if (tab !== 'designmode') closeInspector();
       Object.values(screenIds).forEach((id) => document.getElementById(id).classList.add('hidden'));
       if (tab !== 'customize') {
         document.getElementById(screenIds[tab]).classList.remove('hidden');
       }
       if (tab === 'files') refreshFilesList();
       if (tab === 'nexus') refreshNexusView();
+      if (tab === 'designmode') initDesignMode();
       // Canvas pulls in Konva + perfect-freehand (~450KB) — load on first visit only,
       // so every other tab isn't paying for a dependency it never uses.
       if (tab === 'canvas') {
@@ -642,6 +645,7 @@ async function bootstrap() {
   initFilesTab();
   initNexusTab();
   await loadAndApplySettings();
+  await applyTextOverrides();
   await loadTemplates();
 }
 

@@ -1,5 +1,5 @@
 const DB_NAME = 'intake-db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbPromise = null;
 
@@ -35,6 +35,9 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains('CanvasDraft')) {
         db.createObjectStore('CanvasDraft', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('TextOverrides')) {
+        db.createObjectStore('TextOverrides', { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
