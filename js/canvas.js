@@ -111,8 +111,14 @@ function redo() {
 }
 
 // ---- Layers ----
+// Every layer is clipped to the document's actual bounds — without this, dragging a
+// stroke past the edge of the visible page (into the wrapper's own margin, still
+// inside the stage's full-size hit-test area) rendered it floating outside the
+// canvas/background entirely, since nothing constrained content to STAGE_WIDTH x
+// STAGE_HEIGHT except the export step, which silently cropped it out only at the end.
 function makeLayerMeta(id, name, blendMode = 'source-over') {
   const konvaLayer = new Konva.Layer();
+  konvaLayer.clip({ x: 0, y: 0, width: STAGE_WIDTH, height: STAGE_HEIGHT }); // constructor option is a plain attr, not the clip setter — must be called explicitly
   stage.add(konvaLayer);
   transformer && konvaLayer.add(transformer); // keep transformer above shapes if it exists
   return { id, name, konvaLayer, visible: true, opacity: 1, blendMode };
@@ -859,6 +865,108 @@ function endStroke() {
   strokePoints = [];
 }
 
+// ---- Fill (paint bucket) ----
+// Clicking anywhere fills the connected same-color region on the active layer — a
+// background layer is one uniform color everywhere, so clicking it naturally fills
+// the whole layer with no special-casing needed; clicking inside line art fills just
+// the enclosed area, same as any standard paint-bucket tool.
+function handleFillClick(e) {
+  if (isMultiTouch(e)) return;
+  const pos = relativePointer();
+  if (!pos) return;
+  floodFillAt(Math.floor(pos.x), Math.floor(pos.y));
+}
+
+const FILL_TOLERANCE_SQ = 40 * 40;
+
+function floodFillAt(px, py) {
+  const width = STAGE_WIDTH, height = STAGE_HEIGHT;
+  if (px < 0 || py < 0 || px >= width || py >= height) return;
+  const layer = activeLayer();
+
+  // Konva renders a layer's toCanvas() output through each shape's live absolute
+  // transform, which includes the STAGE's current pan/zoom (the canvas auto-fits the
+  // container on load, so this is virtually never 1:1). Sampling with that transform
+  // still active would crop a shrunken, offset view of the real content into a
+  // full-size buffer — mostly blank canvas outside a small sub-rectangle — and the
+  // flood fill would leak through that blank area. Sample at a neutral 1:1 transform
+  // instead, then restore the real one; nothing repaints on screen in between since
+  // we never yield to the browser before restoring it.
+  const prevScale = { x: stage.scaleX(), y: stage.scaleY() };
+  const prevPos = { x: stage.x(), y: stage.y() };
+  stage.scale({ x: 1, y: 1 });
+  stage.position({ x: 0, y: 0 });
+  const srcCanvas = layer.konvaLayer.toCanvas({ x: 0, y: 0, width, height, pixelRatio: 1 });
+  stage.scale(prevScale);
+  stage.position(prevPos);
+  const srcData = srcCanvas.getContext('2d').getImageData(0, 0, width, height).data;
+
+  const startIdx = (py * width + px) * 4;
+  const tr = srcData[startIdx], tg = srcData[startIdx + 1], tb = srcData[startIdx + 2], ta = srcData[startIdx + 3];
+
+  const fillRgb = hexToRgb(brush.color) || { r: 0, g: 0, b: 0 };
+  const fillAlpha = Math.round((brush.opacity ?? 1) * 255);
+
+  const visited = new Uint8Array(width * height);
+  const out = new ImageData(width, height);
+  const outData = out.data;
+
+  function matches(x, y) {
+    const vIdx = y * width + x;
+    if (visited[vIdx]) return false;
+    const idx = vIdx * 4;
+    const dr = srcData[idx] - tr, dg = srcData[idx + 1] - tg, db = srcData[idx + 2] - tb, da = srcData[idx + 3] - ta;
+    return dr * dr + dg * dg + db * db + da * da <= FILL_TOLERANCE_SQ;
+  }
+  function setPixel(x, y) {
+    const vIdx = y * width + x;
+    visited[vIdx] = 1;
+    const idx = vIdx * 4;
+    outData[idx] = fillRgb.r;
+    outData[idx + 1] = fillRgb.g;
+    outData[idx + 2] = fillRgb.b;
+    outData[idx + 3] = fillAlpha;
+  }
+
+  // Scanline stack-based flood fill — fills whole horizontal runs at once instead of
+  // pushing every individual pixel, which matters at this resolution (2400x1600).
+  const stack = [[px, py]];
+  let filledAny = false;
+  while (stack.length) {
+    let [x, y] = stack.pop();
+    while (x >= 0 && matches(x, y)) x--;
+    x++;
+    let spanAbove = false, spanBelow = false;
+    while (x < width && matches(x, y)) {
+      setPixel(x, y);
+      filledAny = true;
+      if (y > 0) {
+        const above = matches(x, y - 1);
+        if (above && !spanAbove) stack.push([x, y - 1]);
+        spanAbove = above;
+      }
+      if (y < height - 1) {
+        const below = matches(x, y + 1);
+        if (below && !spanBelow) stack.push([x, y + 1]);
+        spanBelow = below;
+      }
+      x++;
+    }
+  }
+  if (!filledAny) return;
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = width;
+  outCanvas.height = height;
+  outCanvas.getContext('2d').putImageData(out, 0, 0);
+  const fillNode = new Konva.Image({ image: outCanvas, x: 0, y: 0, width, height, globalCompositeOperation: layer.blendMode });
+  layer.konvaLayer.add(fillNode);
+  layer.konvaLayer.batchDraw();
+  pushUndo({ type: 'add', layerIndex: activeLayerIndex, node: fillNode });
+  scheduleDraftSave();
+  refreshThumbsIfPanelOpen();
+}
+
 function lerpColor(a, b, t) {
   const pa = hexToRgb(a), pb = hexToRgb(b);
   if (!pa || !pb) return b;
@@ -980,10 +1088,11 @@ function wireStageEvents() {
       return;
     }
     if (activeTool === 'pan') return;
+    if (activeTool === 'fill') { handleFillClick(e); return; }
     startStroke(e);
   });
   stage.on('pointermove', (e) => {
-    if (activeTool === 'select' || activeTool === 'pan') return;
+    if (activeTool === 'select' || activeTool === 'pan' || activeTool === 'fill') return;
     continueStroke(e);
   });
   // pointerup only — pointerleave used to also end the stroke, which fired the
@@ -1007,7 +1116,11 @@ function rebuildLayersFromStage(meta) {
       blendMode: saved.blendMode || 'source-over'
     };
   });
-  layers.forEach((l) => { l.konvaLayer.visible(l.visible); l.konvaLayer.opacity(l.opacity); });
+  layers.forEach((l) => {
+    l.konvaLayer.visible(l.visible);
+    l.konvaLayer.opacity(l.opacity);
+    l.konvaLayer.clip({ x: 0, y: 0, width: STAGE_WIDTH, height: STAGE_HEIGHT }); // re-apply for drafts saved before this was the default
+  });
   activeLayerIndex = layers.length - 1;
 }
 
@@ -1024,6 +1137,7 @@ async function restoreDraftOrCreate(containerEl) {
   }
   stage = new Konva.Stage({ container: containerEl.id, width: STAGE_WIDTH, height: STAGE_HEIGHT });
   const bgLayer = new Konva.Layer();
+  bgLayer.clip({ x: 0, y: 0, width: STAGE_WIDTH, height: STAGE_HEIGHT });
   stage.add(bgLayer);
   bgLayer.add(new Konva.Rect({ x: 0, y: 0, width: STAGE_WIDTH, height: STAGE_HEIGHT, fill: '#ffffff', listening: false }));
   layers = [{ id: crypto.randomUUID(), name: 'Layer 1', konvaLayer: bgLayer, visible: true, opacity: 1, blendMode: 'source-over' }];
