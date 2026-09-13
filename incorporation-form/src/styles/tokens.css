@@ -1,0 +1,24 @@
+:root {
+  --if-navy: #16233f;
+  --if-navy-soft: #223257;
+  --if-navy-tint: #eef1f8;
+  --if-page-bg: #eef0f4;
+  --if-card-bg: #ffffff;
+  --if-border: #d7dbe4;
+  --if-text: #1b2333;
+  --if-text-muted: #6b7280;
+  --if-accent: #2f6fed;
+  --if-danger: #d64545;
+  --if-radius-card: 14px;
+  --if-radius-field: 8px;
+  --if-shadow-card: 0 6px 24px rgba(22, 35, 63, 0.08);
+  --if-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --if-font-scale: 1;
+
+  /* user-customizable (overridden at runtime via SettingsContext) */
+  --if-user-font: var(--if-font-family);
+  --if-user-text-color: var(--if-text);
+  --if-user-accent: var(--if-accent);
+  --if-user-bg-color: var(--if-page-bg);
+  --if-user-bg-image: none;
+}
