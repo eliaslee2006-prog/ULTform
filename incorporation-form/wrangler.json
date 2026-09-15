@@ -1,0 +1,11 @@
+{
+  "name": "incorporation-form",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    { "pattern": "factsheet.eliaslhx.com", "custom_domain": true }
+  ]
+}

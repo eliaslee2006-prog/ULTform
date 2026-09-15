@@ -37,6 +37,26 @@ npm run build
 npm run preview
 ```
 
+## Deploy
+
+Live at **`factsheet.eliaslhx.com`**, served as a Cloudflare Worker's static assets
+(`wrangler.json`'s `assets.directory`), with a Custom Domain route — the same deploy
+mechanism `../nexdash-worker/` already uses for `intake.eliaslhx.com`. This is fully
+independent of the root NexDash app's GitHub Pages deployment (`ult.eliaslhx.com`); a
+GitHub Pages site can only have one custom domain, which is why this app is deployed
+separately rather than alongside it.
+
+```bash
+cd incorporation-form
+npm install
+npx wrangler login      # or set CLOUDFLARE_API_TOKEN
+npm run deploy          # builds (vite build) then `wrangler deploy`
+```
+
+`custom_domain: true` in `wrangler.json`'s `routes` provisions DNS + SSL for
+`factsheet.eliaslhx.com` automatically on deploy, as long as `eliaslhx.com`'s zone is on
+the same Cloudflare account that runs `wrangler deploy`.
+
 ## Structure
 
 - `src/data/formSchema.js` — the field schema (ids match the earlier fillable-PDF field names)
