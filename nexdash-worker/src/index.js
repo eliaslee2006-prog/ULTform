@@ -1,23 +1,30 @@
 // nexdash-worker
 // Handles token-cached Graph auth, idempotent SharePoint sync for the NexDash PWA.
 
-// This must be the PWA's own origin (where fetch() calls to this Worker originate
-// from), not this Worker's own domain — the two are deliberately different hosts.
-const ALLOWED_ORIGIN = 'https://ult.eliaslhx.com';
+// The PWA origins allowed to call this Worker (where fetch() calls originate from),
+// not this Worker's own domain — these are deliberately different hosts. Add a new
+// origin here whenever another frontend app is wired up to sync through this Worker.
+const ALLOWED_ORIGINS = ['https://ult.eliaslhx.com', 'https://factsheet.eliaslhx.com'];
 
-function corsHeaders() {
+function resolveOrigin(request) {
+  const origin = request.headers.get('Origin');
+  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+}
+
+function corsHeaders(origin) {
   return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Idempotency-Key, X-File-Name, X-Template-Id',
-    'Access-Control-Max-Age': '86400'
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin'
   };
 }
 
-function jsonResponse(body, status = 200) {
+function jsonResponse(body, status = 200, origin) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders(), 'Content-Type': 'application/json' }
+    headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' }
   });
 }
 
@@ -78,19 +85,20 @@ async function uploadToGraph(env, token, templateId, fileName, pdfBuffer) {
 }
 
 async function handleSync(request, env) {
+  const origin = resolveOrigin(request);
   const idempotencyKey = request.headers.get('X-Idempotency-Key');
   if (!idempotencyKey) {
-    return jsonResponse({ success: false, error: 'Missing X-Idempotency-Key header' }, 400);
+    return jsonResponse({ success: false, error: 'Missing X-Idempotency-Key header' }, 400, origin);
   }
 
   const seen = await env.TOKEN_CACHE.get(`seen:${idempotencyKey}`);
   if (seen) {
-    return new Response(seen, { headers: { ...corsHeaders(), 'Content-Type': 'application/json' } });
+    return new Response(seen, { headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } });
   }
 
   const contentType = request.headers.get('content-type') || '';
   if (!contentType.includes('application/pdf')) {
-    return jsonResponse({ success: false, error: 'Expected Content-Type: application/pdf' }, 400);
+    return jsonResponse({ success: false, error: 'Expected Content-Type: application/pdf' }, 400, origin);
   }
 
   const fileName = request.headers.get('X-File-Name') || `Document_${Date.now()}.pdf`;
@@ -105,9 +113,9 @@ async function handleSync(request, env) {
       expirationTtl: 86400
     });
 
-    return jsonResponse(result);
+    return jsonResponse(result, 200, origin);
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500);
+    return jsonResponse({ success: false, error: err.message }, 500, origin);
   }
 }
 
@@ -148,15 +156,16 @@ async function callGemini(env, body) {
 }
 
 async function handleNexusTranscribe(request, env) {
+  const origin = resolveOrigin(request);
   const contentType = request.headers.get('content-type') || '';
   if (!contentType.includes('multipart/form-data')) {
-    return jsonResponse({ success: false, error: 'Expected multipart/form-data with an "audio" field' }, 400);
+    return jsonResponse({ success: false, error: 'Expected multipart/form-data with an "audio" field' }, 400, origin);
   }
 
   const formData = await request.formData();
   const audio = formData.get('audio');
   if (!audio) {
-    return jsonResponse({ success: false, error: 'Missing audio file' }, 400);
+    return jsonResponse({ success: false, error: 'Missing audio file' }, 400, origin);
   }
 
   try {
@@ -169,18 +178,19 @@ async function handleNexusTranscribe(request, env) {
         ]
       }]
     });
-    return jsonResponse({ success: true, text: text.trim() });
+    return jsonResponse({ success: true, text: text.trim() }, 200, origin);
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500);
+    return jsonResponse({ success: false, error: err.message }, 500, origin);
   }
 }
 
 async function handleNexusSummarize(request, env) {
+  const origin = resolveOrigin(request);
   let body;
   try { body = await request.json(); } catch { body = {}; }
   const transcript = (body.transcript || '').trim();
   if (!transcript) {
-    return jsonResponse({ success: false, error: 'Missing transcript' }, 400);
+    return jsonResponse({ success: false, error: 'Missing transcript' }, 400, origin);
   }
 
   const prompt = 'You summarize spoken-session transcripts for clinic staff. ' +
@@ -197,9 +207,9 @@ async function handleNexusSummarize(request, env) {
       generationConfig: { responseMimeType: 'application/json' }
     });
     const parsed = JSON.parse(text);
-    return jsonResponse({ success: true, ...parsed });
+    return jsonResponse({ success: true, ...parsed }, 200, origin);
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500);
+    return jsonResponse({ success: false, error: err.message }, 500, origin);
   }
 }
 
@@ -211,11 +221,12 @@ const GENERATIONS_MAX_CHARS = 20000; // roughly a 3-4k word document; keeps cost
 // prompt size bounded — the client also warns before sending anything this large.
 
 async function handleGenerationsDraft(request, env) {
+  const origin = resolveOrigin(request);
   let body;
   try { body = await request.json(); } catch { body = {}; }
   const text = (body.text || '').trim();
   if (!text) {
-    return jsonResponse({ success: false, error: 'Missing text' }, 400);
+    return jsonResponse({ success: false, error: 'Missing text' }, 400, origin);
   }
   const truncated = text.slice(0, GENERATIONS_MAX_CHARS);
 
@@ -238,21 +249,22 @@ async function handleGenerationsDraft(request, env) {
     if (!parsed.title || !Array.isArray(parsed.sections)) {
       throw new Error('Gemini returned an unexpected shape');
     }
-    return jsonResponse({ success: true, ...parsed });
+    return jsonResponse({ success: true, ...parsed }, 200, origin);
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500);
+    return jsonResponse({ success: false, error: err.message }, 500, origin);
   }
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const origin = resolveOrigin(request);
 
     if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders() });
+      return new Response(null, { headers: corsHeaders(origin) });
     }
     if (request.method !== 'POST') {
-      return jsonResponse({ success: false, error: 'Not found' }, 404);
+      return jsonResponse({ success: false, error: 'Not found' }, 404, origin);
     }
 
     if (url.pathname === '/sync') return handleSync(request, env);
@@ -260,6 +272,6 @@ export default {
     if (url.pathname === '/nexus/summarize') return handleNexusSummarize(request, env);
     if (url.pathname === '/generations/draft') return handleGenerationsDraft(request, env);
 
-    return jsonResponse({ success: false, error: 'Not found' }, 404);
+    return jsonResponse({ success: false, error: 'Not found' }, 404, origin);
   }
 };
