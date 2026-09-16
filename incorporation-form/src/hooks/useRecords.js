@@ -3,6 +3,11 @@ import { getAll, put, remove } from '../lib/db.js';
 import { enqueue, setStatusListener, checkRecordsStatus } from '../lib/syncEngine.js';
 import { TEMPLATE_ID } from '../lib/workerConfig.js';
 
+function formatFileTimestamp(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}`;
+}
+
 export function useRecords() {
   const [records, setRecords] = useState([]);
 
@@ -20,13 +25,14 @@ export function useRecords() {
   const submitRecord = useCallback(
     async ({ pdfBlob, customerName }) => {
       const id = crypto.randomUUID ? crypto.randomUUID() : `rec-${Date.now()}`;
-      const fileName = `${(customerName || 'incorporation-factsheet').replace(/[^a-z0-9-_]+/gi, '-')}-${id.slice(0, 8)}.pdf`;
+      const createdAt = Date.now();
+      const fileName = `${(customerName || 'incorporation-factsheet').replace(/[^a-z0-9-_]+/gi, '-')}-${formatFileTimestamp(new Date(createdAt))}.pdf`;
       const record = {
         id,
         idempotencyKey: id,
         fileName,
         customerName: customerName || 'Untitled submission',
-        createdAt: Date.now(),
+        createdAt,
         syncStatus: 'queued',
         pdfBlob
       };
