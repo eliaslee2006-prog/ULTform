@@ -84,6 +84,30 @@ async function uploadToGraph(env, token, templateId, fileName, pdfBuffer) {
   return { success: true, fileId: data.id, webUrl: data.webUrl, fileName };
 }
 
+async function handleStatus(request, env) {
+  const origin = resolveOrigin(request);
+  let body;
+  try { body = await request.json(); } catch { body = {}; }
+  const fileIds = Array.isArray(body.fileIds) ? body.fileIds : [];
+  if (fileIds.length === 0) {
+    return jsonResponse({ success: false, error: 'Missing fileIds' }, 400, origin);
+  }
+
+  try {
+    const token = await getGraphToken(env);
+    const results = {};
+    for (const fileId of fileIds) {
+      const resp = await fetch(`https://graph.microsoft.com/v1.0/sites/${env.SITE_ID}/drive/items/${fileId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      results[fileId] = resp.status !== 404;
+    }
+    return jsonResponse({ success: true, results }, 200, origin);
+  } catch (err) {
+    return jsonResponse({ success: false, error: err.message }, 500, origin);
+  }
+}
+
 async function handleSync(request, env) {
   const origin = resolveOrigin(request);
   const idempotencyKey = request.headers.get('X-Idempotency-Key');
@@ -268,6 +292,7 @@ export default {
     }
 
     if (url.pathname === '/sync') return handleSync(request, env);
+    if (url.pathname === '/status') return handleStatus(request, env);
     if (url.pathname === '/nexus/transcribe') return handleNexusTranscribe(request, env);
     if (url.pathname === '/nexus/summarize') return handleNexusSummarize(request, env);
     if (url.pathname === '/generations/draft') return handleGenerationsDraft(request, env);

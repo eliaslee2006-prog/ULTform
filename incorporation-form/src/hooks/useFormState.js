@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FORM_SCHEMA, buildInitialFormState, flattenFields } from '../data/formSchema.js';
+import { buildFormSchema, buildInitialFormState, flattenFields, MIN_PEOPLE, MAX_PEOPLE } from '../data/formSchema.js';
 
 function isFieldVisible(field, formState) {
   if (!field.showIf) return true;
@@ -9,8 +9,22 @@ function isFieldVisible(field, formState) {
 }
 
 export function useFormState() {
-  const [formState, setFormState] = useState(() => buildInitialFormState());
+  const [directorCount, setDirectorCount] = useState(MIN_PEOPLE);
+  const [shareholderCount, setShareholderCount] = useState(MIN_PEOPLE);
+  // Keep every field ever rendered (up to MAX_PEOPLE of each) in state, so decrementing
+  // and re-incrementing a count doesn't lose already-entered values.
+  const [formState, setFormState] = useState(() => buildInitialFormState(buildFormSchema({ directorCount: MAX_PEOPLE, shareholderCount: MAX_PEOPLE })));
   const [errors, setErrors] = useState({});
+
+  const schema = useMemo(() => buildFormSchema({ directorCount, shareholderCount }), [directorCount, shareholderCount]);
+
+  const changeDirectorCount = useCallback((next) => {
+    setDirectorCount(Math.min(MAX_PEOPLE, Math.max(MIN_PEOPLE, next)));
+  }, []);
+
+  const changeShareholderCount = useCallback((next) => {
+    setShareholderCount(Math.min(MAX_PEOPLE, Math.max(MIN_PEOPLE, next)));
+  }, []);
 
   const setValue = useCallback((id, value) => {
     setFormState((prev) => ({ ...prev, [id]: value }));
@@ -25,11 +39,13 @@ export function useFormState() {
     });
   }, []);
 
-  const allFields = useMemo(() => flattenFields(FORM_SCHEMA), []);
+  const setValues = useCallback((updates) => {
+    setFormState((prev) => ({ ...prev, ...updates }));
+  }, []);
 
   const validate = useCallback(() => {
     const nextErrors = {};
-    for (const field of allFields) {
+    for (const field of flattenFields(schema)) {
       if (!field.required) continue;
       if (!isFieldVisible(field, formState)) continue;
       const value = formState[field.id];
@@ -38,7 +54,20 @@ export function useFormState() {
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
-  }, [allFields, formState]);
+  }, [schema, formState]);
 
-  return { formState, setValue, toggleCheckboxOption, errors, validate, isFieldVisible };
+  return {
+    schema,
+    directorCount,
+    shareholderCount,
+    changeDirectorCount,
+    changeShareholderCount,
+    formState,
+    setValue,
+    setValues,
+    toggleCheckboxOption,
+    errors,
+    validate,
+    isFieldVisible
+  };
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAll, put } from '../lib/db.js';
-import { enqueue, setStatusListener } from '../lib/syncEngine.js';
+import { enqueue, setStatusListener, checkRecordsStatus } from '../lib/syncEngine.js';
 import { TEMPLATE_ID } from '../lib/workerConfig.js';
 
 export function useRecords() {
@@ -38,5 +38,19 @@ export function useRecords() {
     [refresh]
   );
 
-  return { records, refresh, submitRecord };
+  const refreshSyncStatuses = useCallback(async () => {
+    const all = await getAll('Records');
+    const syncedWithId = all.filter((r) => r.syncStatus === 'synced' && r.sharepointFileId);
+    if (syncedWithId.length === 0) return;
+
+    const results = await checkRecordsStatus(syncedWithId.map((r) => r.sharepointFileId));
+    for (const record of syncedWithId) {
+      if (results[record.sharepointFileId] === false) {
+        await put('Records', { ...record, syncStatus: 'deleted_remote' });
+      }
+    }
+    await refresh();
+  }, [refresh]);
+
+  return { records, refresh, submitRecord, refreshSyncStatuses };
 }
