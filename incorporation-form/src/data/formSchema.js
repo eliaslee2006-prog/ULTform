@@ -53,7 +53,45 @@ const personBlock = (prefix, { withCompanyLabel = false, withUen = false, withCo
   return fields;
 };
 
-export const FORM_SCHEMA = [
+export const MIN_PEOPLE = 1;
+export const MAX_PEOPLE = 5;
+
+function buildDirectorSubsections(count) {
+  const subs = [];
+  for (let n = 1; n <= count; n += 1) {
+    subs.push({
+      id: `director${n}`,
+      title: n === 1 ? '1) Director (at least one must be Singaporean or Singapore PR)' : `${n}) Director`,
+      fields: personBlock(`director${n}`)
+    });
+  }
+  return subs;
+}
+
+function buildShareholderSubsections(count) {
+  const subs = [];
+  for (let n = 1; n <= count; n += 1) {
+    subs.push({
+      id: `shareholder${n}`,
+      title: `${n}) Shareholder`,
+      fields: personBlock(`shareholder${n}`, { withCompanyLabel: true, withUen: true, withController: true, withShares: true })
+    });
+  }
+  return subs;
+}
+
+export function buildFormSchema({ directorCount = 1, shareholderCount = 1 } = {}) {
+  return [
+    ...BASE_SCHEMA_HEAD,
+    { id: 'part7', title: 'Part 7: Directors', hint: 'Please provide a copy of NRIC / FIN / Passport and Proof of Residence (utility / mobile bill if foreigner)',
+      subsections: buildDirectorSubsections(directorCount) },
+    { id: 'part8', title: 'Part 8: Shareholders (Individual or Company)', hint: 'Please provide a copy of NRIC / FIN / Passport and Proof of Residence (utility / mobile bill if foreigner)',
+      subsections: buildShareholderSubsections(shareholderCount) },
+    ...BASE_SCHEMA_TAIL
+  ];
+}
+
+const BASE_SCHEMA_HEAD = [
   {
     id: 'part1',
     title: 'Part 1: Proposed Company Names',
@@ -130,24 +168,9 @@ export const FORM_SCHEMA = [
       { id: 'signing_others_text', label: 'Other signing arrangement', type: 'text', span: 2, showIf: { field: 'signing_arrangement', includes: 'others' } }
     ]
   },
-  {
-    id: 'part7',
-    title: 'Part 7: Directors',
-    hint: 'Please provide a copy of NRIC / FIN / Passport and Proof of Residence (utility / mobile bill if foreigner)',
-    subsections: [
-      { id: 'director1', title: '1) Director (at least one must be Singaporean or Singapore PR)', fields: personBlock('director1') },
-      { id: 'director2', title: '2) Director', fields: personBlock('director2') }
-    ]
-  },
-  {
-    id: 'part8',
-    title: 'Part 8: Shareholders (Individual or Company)',
-    hint: 'Please provide a copy of NRIC / FIN / Passport and Proof of Residence (utility / mobile bill if foreigner)',
-    subsections: [
-      { id: 'shareholder1', title: '1) Shareholder', fields: personBlock('shareholder1', { withCompanyLabel: true, withUen: true, withController: true, withShares: true }) },
-      { id: 'shareholder2', title: '2) Shareholder', fields: personBlock('shareholder2', { withCompanyLabel: true, withUen: true, withController: true, withShares: true }) }
-    ]
-  },
+];
+
+const BASE_SCHEMA_TAIL = [
   {
     id: 'part9',
     title: 'Part 9: Company Secretary',
@@ -181,7 +204,9 @@ export const FORM_SCHEMA = [
   }
 ];
 
-export function flattenFields(schema = FORM_SCHEMA) {
+export const DEFAULT_FORM_SCHEMA = buildFormSchema({ directorCount: 1, shareholderCount: 1 });
+
+export function flattenFields(schema = DEFAULT_FORM_SCHEMA) {
   const out = [];
   for (const section of schema) {
     if (section.fields) out.push(...section.fields);
@@ -192,7 +217,7 @@ export function flattenFields(schema = FORM_SCHEMA) {
   return out;
 }
 
-export function buildInitialFormState(schema = FORM_SCHEMA) {
+export function buildInitialFormState(schema = DEFAULT_FORM_SCHEMA) {
   const state = {};
   for (const field of flattenFields(schema)) {
     if (field.type === 'checkbox-group') state[field.id] = [];

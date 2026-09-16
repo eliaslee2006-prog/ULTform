@@ -7,6 +7,7 @@ import { getAll, put, remove, get } from './db.js';
 import { WORKER_BASE_URL, TEMPLATE_ID } from './workerConfig.js';
 
 const WORKER_SYNC_URL = `${WORKER_BASE_URL}/sync`;
+const WORKER_STATUS_URL = `${WORKER_BASE_URL}/status`;
 const MAX_RETRIES = 10;
 const BACKOFF_STEPS = [5000, 15000, 45000, 120000]; // ms, last value repeats after this
 
@@ -19,6 +20,23 @@ export function initSyncEngine() {
   window.addEventListener('online', () => syncAll());
   setInterval(() => syncAll(), 30000);
   syncAll();
+}
+
+// On-demand check (Settings -> Records -> "Refresh status") for whether previously
+// synced files still exist on SharePoint — a file deleted there doesn't otherwise
+// notify this app, so this has to be a manual pull rather than a push/webhook.
+export async function checkRecordsStatus(fileIds) {
+  if (fileIds.length === 0) return {};
+  const resp = await fetch(WORKER_STATUS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileIds })
+  });
+  const data = await resp.json();
+  if (!resp.ok || !data.success) {
+    throw new Error(data.error || `Status check failed with status ${resp.status}`);
+  }
+  return data.results;
 }
 
 export async function enqueue(record) {

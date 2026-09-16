@@ -3,7 +3,7 @@
 // same library ULTform's js/pdf-flatten.js already relies on.
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { FORM_SCHEMA } from '../data/formSchema.js';
+import { DEFAULT_FORM_SCHEMA } from '../data/formSchema.js';
 
 const A4_WIDTH = 595.28;
 const A4_HEIGHT = 841.89;
@@ -29,9 +29,9 @@ function formatValue(field, formState) {
 
 // Flattens FORM_SCHEMA + formState into printable groups, skipping the signature block
 // (drawn separately) and any conditionally-hidden field left blank.
-function buildGroups(formState) {
+function buildGroups(formState, schema) {
   const groups = [];
-  for (const section of FORM_SCHEMA) {
+  for (const section of schema) {
     if (section.id === 'part11') continue; // signature handled separately
     const pushGroup = (title, fields) => {
       const rows = fields
@@ -64,7 +64,7 @@ function wrapText(text, font, size, maxWidth) {
   return lines;
 }
 
-export async function generateSummaryPdf(formState, { generatedAt = new Date() } = {}) {
+export async function generateSummaryPdf(formState, { generatedAt = new Date(), schema = DEFAULT_FORM_SCHEMA } = {}) {
   const pdfDoc = await PDFDocument.create();
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -93,7 +93,7 @@ export async function generateSummaryPdf(formState, { generatedAt = new Date() }
   });
   y = A4_HEIGHT - 120;
 
-  const groups = buildGroups(formState);
+  const groups = buildGroups(formState, schema);
 
   for (const group of groups) {
     ensureSpace(40);
