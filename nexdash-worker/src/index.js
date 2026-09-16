@@ -64,7 +64,7 @@ async function getGraphToken(env) {
 }
 
 async function uploadToGraph(env, token, templateId, fileName, pdfBuffer) {
-  const path = encodeURIComponent(`Intakes/${templateId}/${fileName}`);
+  const path = encodeURIComponent(`NewCustomerInput/${templateId}/${fileName}`);
   const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${env.SITE_ID}/drive/root:/${path}:/content`;
 
   const resp = await fetch(uploadUrl, {
