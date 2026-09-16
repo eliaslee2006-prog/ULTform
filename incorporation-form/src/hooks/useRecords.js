@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getAll, put } from '../lib/db.js';
+import { getAll, put, remove } from '../lib/db.js';
 import { enqueue, setStatusListener, checkRecordsStatus } from '../lib/syncEngine.js';
 import { TEMPLATE_ID } from '../lib/workerConfig.js';
 
@@ -52,5 +52,14 @@ export function useRecords() {
     await refresh();
   }, [refresh]);
 
-  return { records, refresh, submitRecord, refreshSyncStatuses };
+  const deleteRecord = useCallback(
+    async (id) => {
+      await remove('Records', id);
+      await remove('PendingSync', id); // no-op if it already synced/left the queue
+      await refresh();
+    },
+    [refresh]
+  );
+
+  return { records, refresh, submitRecord, refreshSyncStatuses, deleteRecord };
 }

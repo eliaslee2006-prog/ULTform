@@ -162,13 +162,17 @@ button { font-family: inherit; }
 .if-count-value { min-width: 14px; text-align: center; }
 
 .if-copy-first-btn {
-  padding: 4px 10px;
+  padding: 5px 12px;
   font-size: 11px;
+  font-weight: 700;
   border-radius: 999px;
-  background: rgba(255,255,255,0.12);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.4);
+  background: #fff;
+  color: var(--if-navy);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
 }
+.if-copy-first-btn:hover { background: var(--if-navy-tint); }
 .if-section-body {
   padding: 18px;
   display: grid;
@@ -420,6 +424,19 @@ button { font-family: inherit; }
 .if-status-queued { background: #fff3d9; color: #8a6300; }
 .if-status-failed { background: #fde3e3; color: #b0261a; }
 .if-status-deleted_remote { background: #e9e9ee; color: #5a5a66; }
+
+.if-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 14px;
+}
+.if-pagination-label {
+  font-size: 12px;
+  color: var(--if-text-muted);
+  font-weight: 600;
+}
 
 /* ---- Signature modal canvas ---- */
 .if-sig-hint {
