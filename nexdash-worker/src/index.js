@@ -15,7 +15,7 @@ function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Idempotency-Key, X-File-Name, X-Template-Id',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Idempotency-Key, X-File-Name, X-Template-Id, X-App-Key',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin'
   };
@@ -84,8 +84,29 @@ async function uploadToGraph(env, token, templateId, fileName, pdfBuffer) {
   return { success: true, fileId: data.id, webUrl: data.webUrl, fileName };
 }
 
+// Constant-time compare so a mismatched key can't be brute-forced via response-time
+// differences (a naive `a === b` bails out at the first differing character).
+function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// CORS Origin checks only affect browsers — they don't stop a direct curl/script
+// request. Require a caller-supplied key on every request that writes to or reads
+// from SharePoint so the endpoint can't be hit by anyone who just knows the URL
+// (this repo, and therefore the URL, is public).
+function isAuthorized(request, env) {
+  const key = request.headers.get('X-App-Key') || '';
+  return Boolean(env.SYNC_API_KEY) && timingSafeEqual(key, env.SYNC_API_KEY);
+}
+
 async function handleStatus(request, env) {
   const origin = resolveOrigin(request);
+  if (!isAuthorized(request, env)) {
+    return jsonResponse({ success: false, error: 'Unauthorized' }, 401, origin);
+  }
   let body;
   try { body = await request.json(); } catch { body = {}; }
   const fileIds = Array.isArray(body.fileIds) ? body.fileIds : [];
@@ -110,6 +131,9 @@ async function handleStatus(request, env) {
 
 async function handleSync(request, env) {
   const origin = resolveOrigin(request);
+  if (!isAuthorized(request, env)) {
+    return jsonResponse({ success: false, error: 'Unauthorized' }, 401, origin);
+  }
   const idempotencyKey = request.headers.get('X-Idempotency-Key');
   if (!idempotencyKey) {
     return jsonResponse({ success: false, error: 'Missing X-Idempotency-Key header' }, 400, origin);

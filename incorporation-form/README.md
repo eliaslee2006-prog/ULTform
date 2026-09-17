@@ -48,6 +48,7 @@ separately rather than alongside it.
 
 ```bash
 cd incorporation-form
+cp .env.example .env   # fill in VITE_SYNC_API_KEY — must match the Worker's SYNC_API_KEY
 npm install
 npx wrangler login      # or set CLOUDFLARE_API_TOKEN
 npm run deploy          # builds (vite build) then `wrangler deploy`
@@ -57,6 +58,17 @@ npm run deploy          # builds (vite build) then `wrangler deploy`
 `factsheet.eliaslhx.com` automatically on deploy, as long as `eliaslhx.com`'s zone is on
 the same Cloudflare account that runs `wrangler deploy`.
 
+## Access control
+
+This form collects NRIC/FIN/passport numbers, addresses, and signatures, so — per the
+root README's "Access control" section — it's meant to sit behind **Cloudflare Access**
+(staff-only login) at the Cloudflare dashboard level, and every sync request also carries
+a shared `X-App-Key` header that the Worker checks against its `SYNC_API_KEY` secret.
+`.env` (git-ignored) holds this app's copy of that key at build time — see
+`.env.example`. If `.env` is missing or the key doesn't match the Worker's, submissions
+will queue locally but fail to sync (shown as "Failed" in Settings → Records) rather than
+silently uploading somewhere unauthenticated.
+
 ## Structure
 
 - `src/data/formSchema.js` — the field schema (ids match the earlier fillable-PDF field names)
@@ -64,5 +76,6 @@ the same Cloudflare account that runs `wrangler deploy`.
   not a replica of the original table layout)
 - `src/lib/brushEngine.js` / `src/lib/brushImport.js` — signature ink rendering + brush pack import
 - `src/lib/syncEngine.js` / `src/lib/workerConfig.js` — SharePoint sync client (see above)
-- `src/components/settings/` — the gear-icon Settings drawer (Appearance, Signature Brush, Records)
+- `src/components/settings/` — the gear-icon Settings drawer (Appearance, Signature Brush,
+  Records, Privacy — the last covers local record retention, see PDPA notes above)
 - `src/components/ThankYouScreen.jsx` — customizable post-submit screen

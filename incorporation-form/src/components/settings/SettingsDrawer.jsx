@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import AppearanceSettings from './AppearanceSettings.jsx';
 import SignatureBrushSettings from './SignatureBrushSettings.jsx';
 import RecordsPanel from './RecordsPanel.jsx';
+import PrivacySettings from './PrivacySettings.jsx';
 
 const TABS = [
   { id: 'appearance', label: 'Appearance' },
   { id: 'brush', label: 'Signature Brush' },
-  { id: 'records', label: 'Records' }
+  { id: 'records', label: 'Records' },
+  { id: 'privacy', label: 'Privacy' }
 ];
 
 export default function SettingsDrawer({ open, onClose }) {
@@ -39,6 +41,7 @@ export default function SettingsDrawer({ open, onClose }) {
           {tab === 'appearance' && <AppearanceSettings />}
           {tab === 'brush' && <SignatureBrushSettings />}
           {tab === 'records' && <RecordsPanel />}
+          {tab === 'privacy' && <PrivacySettings />}
         </div>
       </aside>
     </>

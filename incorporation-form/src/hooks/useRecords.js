@@ -67,5 +67,21 @@ export function useRecords() {
     [refresh]
   );
 
-  return { records, refresh, submitRecord, refreshSyncStatuses, deleteRecord };
+  // Retention Limitation: once a record has synced to SharePoint (the authoritative
+  // copy), there's no need to keep it in this browser's local storage indefinitely.
+  // Records still queued/failed are left alone regardless of age — purging those
+  // would lose data that hasn't made it to SharePoint yet.
+  const purgeExpiredRecords = useCallback(async (retentionDays) => {
+    if (!retentionDays || retentionDays <= 0) return 0;
+    const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    const all = await getAll('Records');
+    const expired = all.filter((r) => r.syncStatus === 'synced' && r.createdAt < cutoff);
+    for (const record of expired) {
+      await remove('Records', record.id);
+    }
+    if (expired.length > 0) await refresh();
+    return expired.length;
+  }, [refresh]);
+
+  return { records, refresh, submitRecord, refreshSyncStatuses, deleteRecord, purgeExpiredRecords };
 }

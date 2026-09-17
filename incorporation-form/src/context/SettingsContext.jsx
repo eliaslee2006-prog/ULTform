@@ -16,7 +16,12 @@ const DEFAULT_SETTINGS = {
   thankYouBgColor: '#eef0f4',
   thankYouBgImageDataUrl: null,
   selectedBrushId: DEFAULT_BRUSH_ID,
-  customBrushPresets: []
+  customBrushPresets: [],
+  // Once a record has synced to SharePoint (the authoritative long-term copy), how
+  // many days to keep it in this browser's local storage before auto-purging it.
+  // 0 disables auto-purge (keep locally forever). Records still queued/failed to
+  // sync are never auto-purged, regardless of age.
+  recordRetentionDays: 30
 };
 
 const SettingsContext = createContext(null);
