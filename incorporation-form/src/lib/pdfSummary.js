@@ -24,6 +24,10 @@ function formatValue(field, formState) {
     return labels.join(', ') || '—';
   }
   if (raw === '' || raw === undefined || raw === null) return '—';
+  if (field.type === 'select') {
+    const opt = (field.options || []).find((o) => o.value === raw);
+    return opt ? opt.label : String(raw);
+  }
   return String(raw);
 }
 
@@ -32,7 +36,7 @@ function formatValue(field, formState) {
 function buildGroups(formState, schema) {
   const groups = [];
   for (const section of schema) {
-    if (section.id === 'part11') continue; // signature handled separately
+    if (section.id === 'part12') continue; // signature handled separately
     const pushGroup = (title, fields) => {
       const rows = fields
         .filter((f) => f.type !== 'signature')

@@ -5,6 +5,7 @@ function isFieldVisible(field, formState) {
   if (!field.showIf) return true;
   const dep = formState[field.showIf.field];
   if (field.showIf.includes) return Array.isArray(dep) && dep.includes(field.showIf.includes);
+  if (field.showIf.equals !== undefined) return dep === field.showIf.equals;
   return Boolean(dep);
 }
 
