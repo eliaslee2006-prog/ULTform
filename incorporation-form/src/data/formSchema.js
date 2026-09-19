@@ -189,6 +189,34 @@ const BASE_SCHEMA_TAIL = [
   },
   {
     id: 'part11',
+    title: 'Part 11: Commercial Reasons',
+    fields: [
+      {
+        id: 'commercial_reason',
+        label: 'Commercial Reason',
+        type: 'select',
+        required: true,
+        span: 2,
+        options: [
+          { value: 'risk_management', label: 'Risk Management' },
+          { value: 'evaluating_business_performance', label: 'Evaluating Business Performance' },
+          { value: 'estate_succession_planning', label: 'Estate and Succession Planning' },
+          { value: 'all', label: 'All of the above' },
+          { value: 'others', label: 'Others' }
+        ]
+      },
+      {
+        id: 'commercial_reason_others_text',
+        label: 'Please specify',
+        type: 'text',
+        required: true,
+        span: 2,
+        showIf: { field: 'commercial_reason', equals: 'others' }
+      }
+    ]
+  },
+  {
+    id: 'part12',
     title: 'Confirmation & Signature',
     fields: [
       {

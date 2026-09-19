@@ -4,7 +4,7 @@
 // credentials — see incorporation-form/README.md.
 
 import { getAll, put, remove, get } from './db.js';
-import { WORKER_BASE_URL, TEMPLATE_ID } from './workerConfig.js';
+import { WORKER_BASE_URL, TEMPLATE_ID, SYNC_API_KEY } from './workerConfig.js';
 
 const WORKER_SYNC_URL = `${WORKER_BASE_URL}/sync`;
 const WORKER_STATUS_URL = `${WORKER_BASE_URL}/status`;
@@ -29,7 +29,7 @@ export async function checkRecordsStatus(fileIds) {
   if (fileIds.length === 0) return {};
   const resp = await fetch(WORKER_STATUS_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-App-Key': SYNC_API_KEY },
     body: JSON.stringify({ fileIds })
   });
   const data = await resp.json();
@@ -72,7 +72,8 @@ async function syncOne(record) {
         'Content-Type': 'application/pdf',
         'X-Idempotency-Key': record.idempotencyKey,
         'X-File-Name': record.fileName,
-        'X-Template-Id': record.templateId || TEMPLATE_ID
+        'X-Template-Id': record.templateId || TEMPLATE_ID,
+        'X-App-Key': SYNC_API_KEY
       },
       body: record.pdfBlob
     });

@@ -39,6 +39,28 @@ export default function FieldRenderer({ field, value, error, onChange, onToggleO
     );
   }
 
+  if (field.type === 'select') {
+    return (
+      <div className={wrapperClass} style={style} id={field.id}>
+        <label htmlFor={`${field.id}-input`}>
+          {field.label}
+          {field.hint && <span className="if-hint">{field.hint}</span>}
+        </label>
+        <select id={`${field.id}-input`} value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="" disabled>
+            Select…
+          </option>
+          {field.options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        {error && <div className="if-error-text">{error}</div>}
+      </div>
+    );
+  }
+
   if (field.type === 'textarea') {
     return (
       <div className={wrapperClass} style={style} id={field.id}>

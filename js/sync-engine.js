@@ -1,5 +1,5 @@
 import { getAll, put, remove, get } from './db.js';
-import { WORKER_BASE_URL } from './worker-config.js';
+import { WORKER_BASE_URL, getSyncApiKey } from './worker-config.js';
 
 const WORKER_SYNC_URL = `${WORKER_BASE_URL}/sync`;
 const MAX_RETRIES = 10;
@@ -48,7 +48,8 @@ async function syncOne(record) {
         'Content-Type': 'application/pdf',
         'X-Idempotency-Key': record.idempotencyKey,
         'X-File-Name': record.fileName,
-        'X-Template-Id': record.templateId
+        'X-Template-Id': record.templateId,
+        'X-App-Key': getSyncApiKey()
       },
       body: record.pdfBlob
     });

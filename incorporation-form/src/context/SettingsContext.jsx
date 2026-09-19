@@ -16,7 +16,12 @@ const DEFAULT_SETTINGS = {
   thankYouBgColor: '#eef0f4',
   thankYouBgImageDataUrl: null,
   selectedBrushId: DEFAULT_BRUSH_ID,
-  customBrushPresets: []
+  customBrushPresets: [],
+  // Once a record has synced to SharePoint (the authoritative long-term copy), how
+  // many days to keep it in this browser's local storage before auto-purging it.
+  // 0 disables auto-purge (keep locally forever). Records still queued/failed to
+  // sync are never auto-purged, regardless of age.
+  recordRetentionDays: 30
 };
 
 const SettingsContext = createContext(null);
@@ -28,6 +33,10 @@ function applyCssVars(settings) {
     : settings.fontFamily || 'var(--if-font-family)';
   root.setProperty('--if-user-font', family);
   root.setProperty('--if-user-text-color', settings.textColor);
+  // Field labels, input text, and record rows are styled off the base --if-text token
+  // rather than --if-user-text-color directly, so the user's text color choice has to
+  // override that token too or it only visibly affects the masthead heading.
+  root.setProperty('--if-text', settings.textColor);
   root.setProperty('--if-user-accent', settings.accentColor);
   root.setProperty('--if-user-bg-color', settings.bgColor);
   root.setProperty('--if-user-bg-image', settings.bgImageDataUrl ? `url(${settings.bgImageDataUrl})` : 'none');
