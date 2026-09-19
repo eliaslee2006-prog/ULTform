@@ -198,9 +198,21 @@ const BASE_SCHEMA_TAIL = [
         required: true,
         span: 2,
         options: [
-          { value: 'risk_management', label: 'Risk Management' },
-          { value: 'evaluating_business_performance', label: 'Evaluating Business Performance' },
-          { value: 'estate_succession_planning', label: 'Estate and Succession Planning' },
+          {
+            value: 'risk_management',
+            label:
+              'Risk Management: By forming a legal entity for investment holding to own shares of other companies to avoid implications in the event of any legal actions being taken against any of my companies.'
+          },
+          {
+            value: 'evaluating_business_performance',
+            label:
+              'Evaluating Business Performance: By maintaining separate company from other business will allow me to evaluate business performance more effectively and enable to make important business decisions.'
+          },
+          {
+            value: 'estate_succession_planning',
+            label:
+              'Estate and Succession Planning: To allow me to have flexibility for estate and succession planning to transfer, dispose or sell part of the shares.'
+          },
           { value: 'all', label: 'All of the above' },
           { value: 'others', label: 'Others' }
         ]
